@@ -1,0 +1,565 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Restaurant Kiosk</title>
+
+<style>
+body{font-family:Arial;margin:0;background:#f5f5f5;}
+header{background:#111;color:white;padding:15px;font-size:28px;text-align:center;}
+
+#products{
+  width:calc(100% - 420px);
+  display:grid;
+  grid-template-columns:repeat(auto-fit,minmax(220px,1fr));
+  gap:18px;
+  padding:18px;
+  box-sizing:border-box;
+}
+
+.card{background:white;border-radius:15px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,0.2);}
+.card img{width:100%;height:170px;object-fit:cover;}
+.info{padding:12px;}
+.name{font-weight:bold;font-size:20px;}
+.price{color:green;font-size:20px;margin-top:5px;}
+
+.add-btn,.checkout-btn{
+  width:100%;
+  padding:14px;
+  border:none;
+  background:#ff9800;
+  color:white;
+  font-size:20px;
+  cursor:pointer;
+  border-radius:8px;
+}
+
+#cart{
+  position:fixed;
+  right:0;
+  top:70px;
+  width:400px;
+  height:calc(100vh - 70px);
+  background:white;
+  padding:20px;
+  box-shadow:-2px 0 10px rgba(0,0,0,0.2);
+  overflow:auto;
+  box-sizing:border-box;
+}
+
+#cart h2{margin-top:0;border-bottom:1px solid #ddd;padding-bottom:15px;}
+.cart-row{display:flex;gap:12px;padding:15px 0;border-bottom:1px solid #ddd;align-items:center;}
+.cart-img{width:70px;height:70px;object-fit:cover;border-radius:10px;}
+.cart-info{flex:1;}
+.cart-name{font-weight:bold;font-size:16px;}
+.cart-price{color:green;margin:5px 0;}
+.cart-options{font-size:13px;color:#555;line-height:1.4;}
+.qty-box{display:flex;align-items:center;gap:10px;margin-top:8px;}
+.qty-btn{width:34px;height:34px;border:1px solid #ccc;background:white;color:black;font-size:22px;border-radius:6px;cursor:pointer;}
+.cart-right{text-align:right;min-width:80px;}
+.delete-btn{background:white;color:red;border:none;font-size:20px;cursor:pointer;}
+.cart-bottom{margin-top:25px;border-top:1px solid #ddd;padding-top:20px;}
+.total-row{display:flex;justify-content:space-between;font-size:28px;margin-bottom:20px;}
+#cartTotal{color:green;}
+
+#optionModal,#paymentModal{
+  display:none;
+  position:fixed;
+  inset:0;
+  background:rgba(0,0,0,0.65);
+  z-index:999;
+  align-items:center;
+  justify-content:center;
+}
+
+.modal-box{
+  background:white;
+  width:420px;
+  max-width:90%;
+  border-radius:18px;
+  padding:22px;
+  box-sizing:border-box;
+}
+
+.option-group{margin:18px 0;}
+.option-group label{display:block;margin:8px 0;font-size:17px;}
+.modal-actions{display:flex;gap:10px;}
+.cancel-btn,.confirm-btn{flex:1;color:white;border:none;padding:14px;font-size:18px;border-radius:8px;}
+.cancel-btn{background:#777;}
+.confirm-btn{background:#ff9800;}
+</style>
+</head>
+
+<body>
+
+<header>🍜 SELF ORDER KIOSK</header>
+
+<div id="products"></div>
+
+<div id="cart">
+  <h2>🛒 Your Order</h2>
+  <div id="cartItems"></div>
+
+  <div class="cart-bottom">
+    <div class="total-row">
+      <b>Total</b>
+      <b id="cartTotal">RM 0.00</b>
+    </div>
+    <button class="checkout-btn" onclick="checkout()">🛍 CHECKOUT</button>
+  </div>
+</div>
+
+<div id="optionModal">
+  <div class="modal-box">
+    <h2 id="modalProductName">Product Options</h2>
+    <div id="dynamicOptions"></div>
+
+    <div class="modal-actions">
+      <button class="cancel-btn" onclick="closeOptions()">Cancel</button>
+      <button class="confirm-btn" onclick="confirmOptions()">Add to Order</button>
+    </div>
+  </div>
+</div>
+
+<div id="paymentModal">
+  <div class="modal-box" style="text-align:center;">
+    <h2>Scan QR To Pay</h2>
+    <h3 id="paymentOrderNo"></h3>
+    <h2 id="paymentTotal"></h2>
+
+    <img src="payment-qr.jpg" style="width:280px;max-width:100%;border:2px solid #ddd;border-radius:12px;">
+
+    <br><br>
+
+    <button onclick="paymentDone()" class="confirm-btn" style="width:100%;">
+      PAYMENT DONE
+    </button>
+
+    <br><br>
+
+    <button onclick="closePayment()" class="cancel-btn" style="width:100%;">
+      CANCEL
+    </button>
+  </div>
+</div>
+
+<script>
+const API_GET =
+"https://script.google.com/macros/s/AKfycbwhenw-rZfEYO2JMnpCANZwYinAS9V15htJromgrsPqQAsofSXH_HR3q7i6bk-YCi5T/exec?action=getProducts";
+
+const API_POST =
+"https://script.google.com/macros/s/AKfycbwhenw-rZfEYO2JMnpCANZwYinAS9V15htJromgrsPqQAsofSXH_HR3q7i6bk-YCi5T/exec";
+
+let cart = [];
+let selectedProduct = null;
+let pendingOrderNo = "";
+let pendingTotal = 0;
+
+async function loadProducts(){
+  const res = await fetch(API_GET);
+  const data = await res.json();
+
+  const productsDiv = document.getElementById("products");
+  productsDiv.innerHTML = "";
+
+  data.products.forEach(p=>{
+    productsDiv.innerHTML += `
+      <div class="card">
+        <img src="${p.image}" onerror="this.src='https://via.placeholder.com/300'">
+        <div class="info">
+          <div class="name">${p.name}</div>
+          <div class="price">RM ${Number(p.price).toFixed(2)}</div>
+        </div>
+        <button class="add-btn" onclick='openOptions(${JSON.stringify(p)})'>ADD</button>
+      </div>
+    `;
+  });
+}
+
+function openOptions(product){
+  selectedProduct = product;
+  document.getElementById("modalProductName").innerText = product.name;
+
+  const optionsDiv = document.getElementById("dynamicOptions");
+  optionsDiv.innerHTML = "";
+
+  if(product.category.includes("CHAR KUEY TIAW")){
+    optionsDiv.innerHTML = `
+      <div class="option-group">
+        <b>Spicy Level</b>
+        <label><input type="radio" name="spicy" value="Normal" checked> Normal</label>
+        <label><input type="radio" name="spicy" value="Spicy"> Spicy</label>
+        <label><input type="radio" name="spicy" value="Extra Spicy"> Extra Spicy</label>
+      </div>
+
+      <div class="option-group">
+        <b>Sayur</b>
+        <label><input type="radio" name="sayur" value="Tauge & Kucai" checked> Tauge & Kucai</label>
+        <label><input type="radio" name="sayur" value="No Tauge"> No Tauge</label>
+        <label><input type="radio" name="sayur" value="No Kucai"> No Kucai</label>
+        <label><input type="radio" name="sayur" value="No Sayur"> No Sayur</label>
+      </div>
+
+      <div class="option-group">
+        <b>Add On</b>
+        <label><input type="checkbox" id="telurMata"> Telur Mata + RM1.50</label>
+      </div>
+    `;
+  }else{
+    optionsDiv.innerHTML = `
+      <div class="option-group">
+        <b>Drizzle</b>
+        <label><input type="radio" name="drizzle" value="Strawberry" checked> Strawberry</label>
+        <label><input type="radio" name="drizzle" value="Chocolate"> Chocolate</label>
+        <label><input type="radio" name="drizzle" value="Caramel"> Caramel</label>
+        <label><input type="radio" name="drizzle" value="Condensed Milk"> Condensed Milk</label>
+      </div>
+    `;
+  }
+
+  document.getElementById("optionModal").style.display = "flex";
+}
+
+function closeOptions(){
+  document.getElementById("optionModal").style.display = "none";
+}
+
+function confirmOptions(){
+  let spicy = "";
+  let sayur = "";
+  let addOn = "";
+  let drizzle = "";
+  let extraPrice = 0;
+
+  if(selectedProduct.category.includes("CHAR KUEY TIAW")){
+    spicy = document.querySelector('input[name="spicy"]:checked').value;
+    sayur = document.querySelector('input[name="sayur"]:checked').value;
+
+    if(document.getElementById("telurMata").checked){
+      extraPrice = 1.50;
+      addOn = "Telur Mata";
+    }else{
+      addOn = "No Add On";
+    }
+  }else{
+    drizzle = document.querySelector('input[name="drizzle"]:checked').value;
+  }
+
+  const finalPrice = Number(selectedProduct.price) + extraPrice;
+  const cartKey = selectedProduct.id + "|" + spicy + "|" + sayur + "|" + addOn + "|" + drizzle;
+
+  const found = cart.find(item => item.key === cartKey);
+
+  if(found){
+    found.qty++;
+  }else{
+    cart.push({
+      key:cartKey,
+      id:selectedProduct.id,
+      name:selectedProduct.name,
+      image:selectedProduct.image,
+      price:finalPrice,
+      spicy:spicy,
+      sayur:sayur,
+      addOn:addOn,
+      drizzle:drizzle,
+      qty:1
+    });
+  }
+
+  closeOptions();
+  renderCart();
+}
+
+function renderCart(){
+  const cartItems = document.getElementById("cartItems");
+  const cartTotal = document.getElementById("cartTotal");
+
+  cartItems.innerHTML = "";
+  let total = 0;
+
+  cart.forEach((item,index)=>{
+    const itemTotal = item.price * item.qty;
+    total += itemTotal;
+
+    cartItems.innerHTML += `
+      <div class="cart-row">
+        <img class="cart-img" src="${item.image}" onerror="this.src='https://via.placeholder.com/100'">
+
+        <div class="cart-info">
+          <div class="cart-name">${item.name}</div>
+          <div class="cart-price">RM ${item.price.toFixed(2)}</div>
+
+          <div class="cart-options">
+            ${item.spicy ? `Spicy: ${item.spicy}<br>` : ""}
+            ${item.sayur ? `Sayur: ${item.sayur}<br>` : ""}
+            ${item.addOn ? `Add On: ${item.addOn}<br>` : ""}
+            ${item.drizzle ? `Drizzle: ${item.drizzle}<br>` : ""}
+          </div>
+
+          <div class="qty-box">
+            <button class="qty-btn" onclick="minusQty(${index})">−</button>
+            <span>${item.qty}</span>
+            <button class="qty-btn" onclick="plusQty(${index})">+</button>
+          </div>
+        </div>
+
+        <div class="cart-right">
+          <div>RM ${itemTotal.toFixed(2)}</div>
+          <button class="delete-btn" onclick="removeItem(${index})">🗑</button>
+        </div>
+      </div>
+    `;
+  });
+
+  cartTotal.innerHTML = "RM " + total.toFixed(2);
+}
+
+function plusQty(index){
+  cart[index].qty++;
+  renderCart();
+}
+
+function minusQty(index){
+  cart[index].qty--;
+
+  if(cart[index].qty <= 0){
+    cart.splice(index,1);
+  }
+
+  renderCart();
+}
+
+function removeItem(index){
+  cart.splice(index,1);
+  renderCart();
+}
+
+function checkout(){
+  if(cart.length === 0){
+    alert("Cart is empty");
+    return;
+  }
+
+  let lastQueue = Number(localStorage.getItem("lastQueue")) || 0;
+  lastQueue++;
+
+  if(lastQueue > 20){
+    lastQueue = 1;
+  }
+
+  localStorage.setItem("lastQueue", lastQueue);
+
+  pendingOrderNo = "Q" + String(lastQueue).padStart(2,"0");
+
+  pendingTotal = cart.reduce((sum,item)=>{
+    return sum + (item.price * item.qty);
+  },0);
+
+  document.getElementById("paymentOrderNo").innerText =
+    "Order No: " + pendingOrderNo;
+
+  document.getElementById("paymentTotal").innerText =
+    "Total: RM " + pendingTotal.toFixed(2);
+
+  document.getElementById("paymentModal").style.display = "flex";
+}
+
+function closePayment(){
+  document.getElementById("paymentModal").style.display = "none";
+}
+
+async function paymentDone(){
+  const paidCart = JSON.parse(JSON.stringify(cart));
+  const paidOrderNo = pendingOrderNo;
+  const paidTotal = pendingTotal;
+
+  if(paidCart.length === 0){
+    alert("Cart is empty");
+    return;
+  }
+
+  const orderData = {
+    action:"createOrder",
+    orderNo:paidOrderNo,
+    orderType:"Dine In",
+    tableNo:"Kiosk",
+    items:paidCart,
+    total:paidTotal.toFixed(2)
+  };
+
+  try{
+    const res = await fetch(API_POST,{
+      method:"POST",
+      body:JSON.stringify(orderData)
+    });
+
+    const data = await res.json();
+
+    if(data.success){
+      closePayment();
+
+      printReceipt(paidOrderNo, paidTotal, paidCart);
+
+      cart = [];
+      renderCart();
+
+      pendingOrderNo = "";
+      pendingTotal = 0;
+
+      alert("Payment Done. Order No: " + paidOrderNo);
+    }else{
+      alert("Failed: " + data.message);
+    }
+
+  }catch(error){
+    alert("Error sending order");
+    console.log(error);
+  }
+}
+
+function printReceipt(orderNo, total, items){
+
+  let receiptHTML = `
+    <div id="receiptPage">
+
+      <style>
+        #receiptPage{
+          font-family:monospace;
+          width:80mm;
+          font-size:18px;
+          font-weight:bold;
+          padding:4px;
+        }
+
+        #receiptPage h2{
+          text-align:center;
+          font-size:28px;
+          margin:5px 0;
+        }
+        .shop-address{
+          text-align:center;
+          font-size:16px;
+          margin-bottom:6px;
+          font-weight:Bold;
+        }
+
+        .center{
+          text-align:center;
+        }
+
+        .line{
+          border-top:1px dashed #000;
+          margin:8px 0;
+        }
+
+        .item{
+          margin-bottom:10px;
+          line-height:1.4;
+        }
+
+        .total{
+          font-size:22px;
+          font-weight:bold;
+        }
+
+        .print-btn,
+        .back-btn{
+          width:100%;
+          padding:15px;
+          font-size:22px;
+          margin-top:10px;
+          border:none;
+          border-radius:8px;
+        }
+
+        .print-btn{
+          background:#ff9800;
+          color:white;
+        }
+
+        .back-btn{
+          background:#555;
+          color:white;
+        }
+
+        @media print{
+          body *{
+            visibility:hidden;
+          }
+
+          #receiptPage,
+          #receiptPage *{
+            visibility:visible;
+          }
+
+          #receiptPage{
+            position:absolute;
+            left:0;
+            top:0;
+          }
+
+          button{
+            display:none;
+          }
+        }
+        </style>
+
+            <h2>🍜WOK HEI🍜</h2>
+            <h2>CHAR KUEH TEOW</h2>
+
+            <div class="shop-address">
+          @ URBAN BREW COFFEE,(TAIPING) NO. 179, JLN TMN KERJASAMA, TMN KERJASAMA, 34000 TAIPING, PERAK.      
+            </div>
+
+            <div class="center">Order No: ${orderNo}</div>
+            <div class="center">${new Date().toLocaleString()}</div>
+
+            <div class="line"></div>
+         `;
+
+  items.forEach(item=>{
+    receiptHTML += `
+      <div class="item">
+        <div style="font-size:18px;">${item.qty}x ${item.name}</div>
+        ${item.spicy ? "Spicy: " + item.spicy + "<br>" : ""}
+        ${item.sayur ? "Sayur: " + item.sayur + "<br>" : ""}
+        ${item.addOn ? "Add On: " + item.addOn + "<br>" : ""}
+        ${item.drizzle ? "Drizzle: " + item.drizzle + "<br>" : ""}
+        RM ${(item.price * item.qty).toFixed(2)}
+      </div>
+    `;
+  });
+
+  receiptHTML += `
+      <div class="line"></div>
+
+      <div class="total">
+        TOTAL: RM ${total.toFixed(2)}
+      </div>
+
+      <br>
+
+      <div class="center">Thank You</div>
+
+      <button class="print-btn" onclick="window.print()">
+        PRINT NOW
+      </button>
+
+      <button class="back-btn" onclick="backToKiosk()">
+        BACK TO KIOSK
+      </button>
+
+    </div>
+  `;
+
+  document.body.innerHTML = receiptHTML;
+}
+function backToKiosk(){
+  location.reload();
+}
+loadProducts();
+</script>
+
+</body>
+</html>
