@@ -87,12 +87,109 @@ header{background:#111;color:white;padding:15px;font-size:28px;text-align:center
 .cancel-btn,.confirm-btn{flex:1;color:white;border:none;padding:14px;font-size:18px;border-radius:8px;}
 .cancel-btn{background:#777;}
 .confirm-btn{background:#ff9800;}
+
+@media screen and (max-width: 768px){
+
+  header{
+    font-size:24px;
+    padding:14px;
+  }
+
+  #products{
+    width:100%;
+    grid-template-columns:repeat(2, 1fr);
+    gap:10px;
+    padding:10px;
+    padding-bottom:230px;
+  }
+
+  .card img{
+    height:120px;
+  }
+
+  .name{
+    font-size:15px;
+  }
+
+  .price{
+    font-size:16px;
+  }
+
+  .add-btn{
+    font-size:16px;
+    padding:10px;
+  }
+
+  #cart{
+    position:fixed;
+    left:0;
+    right:0;
+    bottom:0;
+    top:auto;
+    width:100%;
+    height:220px;
+    padding:12px;
+    overflow:auto;
+  }
+
+  #cart h2{
+    font-size:22px;
+    margin-bottom:8px;
+  }
+
+  .total-row{
+    font-size:24px;
+  }
+
+  .checkout-btn{
+    font-size:20px;
+    padding:12px;
+  }
+}
+
+@media screen and (max-width: 768px){
+
+  body{
+    padding-bottom:260px !important;
+    overflow-x:hidden !important;
+  }
+
+  #products{
+    display:grid !important;
+    width:100% !important;
+    grid-template-columns:repeat(2, 1fr) !important;
+    gap:10px !important;
+    padding:10px !important;
+    box-sizing:border-box !important;
+  }
+
+  #cart{
+    position:fixed !important;
+    top:auto !important;
+    bottom:0 !important;
+    left:0 !important;
+    right:0 !important;
+    width:100% !important;
+    height:250px !important;
+    z-index:999 !important;
+    background:white !important;
+  }
+
+}
 </style>
 </head>
 
 <body>
 
 <header>🍜 SELF ORDER KIOSK</header>
+<div id="pagerDisplay"
+style="
+text-align:center;
+font-size:22px;
+font-weight:bold;
+padding:10px;
+background:white;">
+</div>
 
 <div id="products"></div>
 
@@ -149,6 +246,21 @@ const API_GET =
 
 const API_POST =
 "https://script.google.com/macros/s/AKfycbwhenw-rZfEYO2JMnpCANZwYinAS9V15htJromgrsPqQAsofSXH_HR3q7i6bk-YCi5T/exec";
+
+const pagerNo =
+  new URLSearchParams(window.location.search)
+  .get("pager") || "KIOSK";
+
+const API_GET =
+  "...";
+
+  const API_POST =
+  "...";
+
+const pagerNo =
+new URLSearchParams(window.location.search)
+.get("pager") || "KIOSK";
+
 
 let cart = [];
 let selectedProduct = null;
@@ -379,11 +491,11 @@ async function paymentDone(){
     return;
   }
 
-  const orderData = {
+    const orderData = {
     action:"createOrder",
     orderNo:paidOrderNo,
     orderType:"Dine In",
-    tableNo:"Kiosk",
+    pagerNo:pagerNo,
     items:paidCart,
     total:paidTotal.toFixed(2)
   };
@@ -558,6 +670,10 @@ function printReceipt(orderNo, total, items){
 function backToKiosk(){
   location.reload();
 }
+document.getElementById("pagerDisplay").innerText =
+pagerNo === "KIOSK"
+? "Counter Kiosk"
+: "Pager " + pagerNo;
 loadProducts();
 </script>
 
