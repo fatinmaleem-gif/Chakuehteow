@@ -9,7 +9,7 @@ body{font-family:Arial;margin:0;background:#f5f5f5;}
 header{background:#111;color:white;padding:15px;font-size:28px;text-align:center;}
 
 #products{
-  width:calc(100% - 420px);
+  width:100%;
   display:grid;
   grid-template-columns:repeat(auto-fit,minmax(220px,1fr));
   gap:18px;
@@ -87,6 +87,33 @@ header{background:#111;color:white;padding:15px;font-size:28px;text-align:center
 .cancel-btn,.confirm-btn{flex:1;color:white;border:none;padding:14px;font-size:18px;border-radius:8px;}
 .cancel-btn{background:#777;}
 .confirm-btn{background:#ff9800;}
+
+@media screen and (max-width:768px){
+
+  #products{
+    width:100% !important;
+    display:grid !important;
+    grid-template-columns:repeat(2,1fr) !important;
+    gap:10px !important;
+    padding:10px !important;
+    padding-bottom:260px !important;
+    box-sizing:border-box !important;
+  }
+
+  #cart{
+    position:fixed !important;
+    bottom:0 !important;
+    left:0 !important;
+    width:100% !important;
+    height:240px !important;
+    top:auto !important;
+  }
+
+  .card img{
+    height:120px !important;
+  }
+
+}
 </style>
 </head>
 
