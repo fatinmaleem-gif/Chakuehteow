@@ -369,6 +369,11 @@ function checkout(){
     return sum + (item.price * item.qty);
   },0);
 
+  if(pagerNo !== "KIOSK"){
+    sendCustomerOrder();
+    return;
+  }
+
   document.getElementById("paymentOrderNo").innerText =
     "Order No: " + pendingOrderNo;
 
@@ -376,6 +381,55 @@ function checkout(){
     "Total: RM " + pendingTotal.toFixed(2);
 
   document.getElementById("paymentModal").style.display = "flex";
+}
+
+async function sendCustomerOrder(){
+
+  const customerCart = JSON.parse(JSON.stringify(cart));
+
+  const orderData = {
+    action:"createOrder",
+    orderNo:pendingOrderNo,
+    orderType:"QR Order",
+    pagerNo:pagerNo,
+    items:customerCart,
+    total:pendingTotal.toFixed(2)
+  };
+
+  try{
+    const res = await fetch(API_POST,{
+      method:"POST",
+      body:JSON.stringify(orderData)
+    });
+
+    const data = await res.json();
+
+    if(data.success){
+      document.body.innerHTML = `
+        <div style="
+          font-family:Arial;
+          text-align:center;
+          padding:40px 20px;
+        ">
+          <h1 style="color:green;">✅ Order Sent Successfully</h1>
+          <h2>Pager ${pagerNo}</h2>
+          <h2>Order No: ${pendingOrderNo}</h2>
+          <h2>Total: RM ${pendingTotal.toFixed(2)}</h2>
+
+          <p style="font-size:22px;line-height:1.5;">
+            Please proceed to the counter for payment.<br>
+            Keep your pager with you.
+          </p>
+        </div>
+      `;
+    }else{
+      alert("Failed: " + data.message);
+    }
+
+  }catch(error){
+    alert("Error sending order");
+    console.log(error);
+  }
 }
 
 function closePayment(){
