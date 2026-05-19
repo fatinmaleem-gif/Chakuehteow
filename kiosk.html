@@ -370,9 +370,10 @@ function checkout(){
   },0);
 
   if(pagerNo !== "KIOSK"){
-    sendCustomerOrder();
-    return;
-  }
+  alert("Customer QR mode detected: Pager " + pagerNo);
+  sendCustomerOrder();
+  return;
+}
 
   document.getElementById("paymentOrderNo").innerText =
     "Order No: " + pendingOrderNo;
