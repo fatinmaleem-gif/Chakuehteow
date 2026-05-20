@@ -418,7 +418,7 @@ async function sendCustomerOrder(){
     action:"createOrder",
     orderNo:pendingOrderNo,
     orderType:"QR Order",
-    pagerNo:pagerNo,
+    pagerNo:String(pagerNo),
     items:customerCart,
     total:pendingTotal.toFixed(2)
   };
@@ -527,7 +527,7 @@ async function paymentDone(){
     action:"createOrder",
     orderNo:paidOrderNo,
     orderType:"Dine In",
-    pagerNo:pagerNo,
+    pagerNo:String(pagerNo),
     items:paidCart,
     total:paidTotal.toFixed(2)
   };
