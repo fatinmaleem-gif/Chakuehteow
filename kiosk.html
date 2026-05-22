@@ -418,13 +418,14 @@ async function sendCustomerOrder(){
   const customerCart = JSON.parse(JSON.stringify(cart));
 
   const orderData = {
-    action:"createOrder",
-    orderNo:pendingOrderNo,
-    orderType:"QR Order",
-    pagerNo:String(pagerNo),
-    items:customerCart,
-    total:pendingTotal.toFixed(2)
-  };
+  action:"createOrder",
+  orderNo:pendingOrderNo,
+  orderType:"QR Order",
+  pagerNo:String(pagerNo),
+  tableNo:String(pagerNo),
+  items:customerCart,
+  total:pendingTotal.toFixed(2)
+};
 
   try{
     const res = await fetch(API_POST,{
@@ -527,13 +528,14 @@ async function paymentDone(){
   }
 
   const orderData = {
-    action:"createOrder",
-    orderNo:paidOrderNo,
-    orderType:"Dine In",
-    pagerNo:String(pagerNo),
-    items:paidCart,
-    total:paidTotal.toFixed(2)
-  };
+  action:"createOrder",
+  orderNo:paidOrderNo,
+  orderType:"Dine In",
+  pagerNo:String(pagerNo),
+  tableNo:String(pagerNo),
+  items:paidCart,
+  total:paidTotal.toFixed(2)
+};
 
   try{
     const res = await fetch(API_POST,{
