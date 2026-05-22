@@ -412,6 +412,9 @@ function checkout(){
 
 async function sendCustomerOrder(){
 
+  console.log("Pager:", pagerNo);
+  alert("Pager sending: " + pagerNo);
+
   const customerCart = JSON.parse(JSON.stringify(cart));
 
   const orderData = {
