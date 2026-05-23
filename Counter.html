@@ -199,7 +199,7 @@ async function markPaid(row){
   const data = await res.json();
 
   if(data.success){
-    alert("Payment marked as PAID");
+    alert(JSON.stringify(data));
     loadOrders();
   }else{
     alert("Failed to update payment");
