@@ -184,6 +184,7 @@ async function loadOrders(){
 
 }
 
+
 async function markPaid(row){
 
   const res = await fetch(API_URL,{
@@ -210,27 +211,8 @@ loadOrders();
 
 setInterval(loadOrders,5000);
 
-async function markPaid(row){
 
-  const res = await fetch(API_URL,{
-    method:"POST",
-    body:JSON.stringify({
-      action:"updateOrderStatus",
-      row:row,
-      paymentStatus:"PAID"
-    })
-  });
 
-  const data = await res.json();
-
-  if(data.success){
-    alert("Payment marked as PAID");
-    loadOrders();
-  }else{
-    alert("Failed to update payment");
-  }
-
-}
 
 </script>
 
