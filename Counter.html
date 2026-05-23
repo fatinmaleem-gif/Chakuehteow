@@ -187,24 +187,27 @@ async function loadOrders(){
 
 async function markPaid(row){
 
-  const res = await fetch(API_URL,{
-    method:"POST",
-    body:JSON.stringify({
-      action:"updateOrderStatus",
-      row:row,
-      paymentStatus:"PAID"
-    })
-  });
+  try{
+    const res = await fetch(API_URL,{
+      method:"POST",
+      body:JSON.stringify({
+        action:"updateOrderStatus",
+        row:row,
+        paymentStatus:"PAID"
+      })
+    });
 
-  const data = await res.json();
+    const data = await res.json();
 
-  if(data.success){
     alert(JSON.stringify(data));
-    loadOrders();
-  }else{
-    alert("Failed to update payment");
-  }
 
+    if(data.success){
+      loadOrders();
+    }
+
+  }catch(error){
+    alert("ERROR: " + error);
+  }
 }
 
 loadOrders();
