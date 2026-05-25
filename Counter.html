@@ -1,211 +1,67 @@
-<!DOCTYPE html>
-<html>
-<head>
-<meta name="viewport" content="width=device-width, initial-scale=1">
+function doGet(e){
 
-<title>Counter Dashboard</title>
+  const sheet = SpreadsheetApp
+    .getActiveSpreadsheet()
+    .getSheetByName("Orders");
 
-<style>
+  const orderId =
+    "ORD" + new Date().getTime();
 
-body{
-  font-family:Arial;
-  margin:0;
-  background:#f5f5f5;
-}
+  sheet.appendRow([
 
-header{
-  background:#111;
-  color:white;
-  padding:15px;
-  text-align:center;
-  font-size:30px;
-  font-weight:bold;
-}
+    orderId,
+    data.orderNo,
+    data.orderType,
+    data.pagerNo || data.tableNo || "KIOSK",
+    JSON.stringify(data.items),
+    data.total,
+    "Pending",
+    "Unpaid",
+    new Date()
 
-#orders{
-  display:grid;
-  grid-template-columns:repeat(auto-fit,minmax(280px,1fr));
-  gap:15px;
-  padding:15px;
-}
+  ]);
 
-.order-card{
-  background:white;
-  border-radius:15px;
-  padding:15px;
-  box-shadow:0 2px 8px rgba(0,0,0,0.2);
-  border-left:10px solid orange;
-}
-
-.order-card h2{
-  margin:0 0 10px 0;
-}
-
-.order-items{
-  margin:10px 0;
-  line-height:1.5;
-}
-
-.order-total{
-  font-size:22px;
-  font-weight:bold;
-  color:green;
-  margin-top:10px;
-}
-
-.order-status{
-  margin-top:10px;
-  font-size:18px;
-  font-weight:bold;
-}
-
-.btn-group{
-  display:grid;
-  grid-template-columns:1fr 1fr;
-  gap:10px;
-  margin-top:15px;
-}
-
-button{
-  border:none;
-  padding:12px;
-  border-radius:10px;
-  color:white;
-  font-size:16px;
-  cursor:pointer;
-}
-
-.pay-btn{
-  background:#2196f3;
-}
-
-.print-btn{
-  background:#ff9800;
-}
-
-.close-btn{
-  background:#777;
-}
-
-</style>
-</head>
-
-<body>
-
-<header>
-🍜 COUNTER DASHBOARD
-</header>
-
-<div id="orders"></div>
-
-<script>
-
-const API_URL =
-"https://script.google.com/macros/s/AKfycbyrgzcigachdwv4JfOTbicS_KcMTs__TSx0gvNridFa5GQFdF8lTPajWE0C7DCzC64q/exec?action=getOrders";
-
-async function loadOrders(){
-
-  try{
-
-    const res = await fetch(API_URL + "?action=getOrders");
-    const data = await res.json();
-
-    const ordersDiv =
-    document.getElementById("orders");
-
-    ordersDiv.innerHTML = "";
-
-    data.orders.reverse().forEach(order=>{
-
-      let itemsHTML = "";
-
-      order.items.forEach(item=>{
-
-        itemsHTML += `
-          <div>
-            ${item.qty}x ${item.name}
-          </div>
-        `;
-
-      });
-
-      ordersDiv.innerHTML += `
-
-        <div class="order-card">
-
-          <h2>
-            Pager ${order.pagerNo}
-          </h2>
-
-          <div>
-            Order No:
-            ${order.orderNo}
-          </div>
-
-          <div class="order-items">
-            ${itemsHTML}
-          </div>
-
-          <div class="order-total">
-            RM ${Number(order.total).toFixed(2)}
-          </div>
-
-          <div class="order-status">
-            ${order.status || "NEW"}
-          </div>
-
-          <div class="btn-group">
-
-            <button class="pay-btn" onclick="markPaid(${order.row})">
-            PAYMENT
-            </button>
-
-            <button class="print-btn">
-             PRINT
-            </button>
-
-            <button class="close-btn">
-             CLOSE
-            </button>
-
-          </div>
-
-        </div>
-
-      `;
-
-    });
-
-  }catch(error){
-
-    console.log(error);
-
-  }
+  return output({
+    success:true
+  });
 
 }
 
+function getOrders(){
 
-async function markPaid(row){
+  const sheet = SpreadsheetApp
+    .getActiveSpreadsheet()
+    .getSheetByName("Orders");
 
-  const res = await fetch(API_URL + "?action=markPaid&row=" + row);
-  const data = await res.json();
+  const rows = sheet.getDataRange().getValues();
+  rows.shift();
 
-  alert(JSON.stringify(data));
+  const orders = rows.map((r,index)=>({
 
-  if(data.success){
-    loadOrders();
-  }
+    row:index + 2,
+    orderId:r[0],
+    orderNo:r[1],
+    orderType:r[2],
+    pagerNo:r[3],
+    items:JSON.parse(r[4] || "[]"),
+    total:r[5],
+    status:r[6],
+    paymentStatus:r[7],
+    timestamp:r[8]
+
+  }));
+
+  return output({
+    success:true,
+    orders:orders
+  });
 
 }
-  
-loadOrders();
 
-setInterval(loadOrders,5000);
+function output(data){
 
+  return ContentService
+    .createTextOutput(JSON.stringify(data))
+    .setMimeType(ContentService.MimeType.JSON);
 
-
-
-</script>
-
-</body>
-</html>
+}
