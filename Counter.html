@@ -22,7 +22,7 @@ header{
 
 #orders{
   display:grid;
-  grid-template-columns:repeat(auto-fit,minmax(280px,1fr));
+  grid-template-columns:repeat(auto-fit,minmax(310px,1fr));
   gap:15px;
   padding:15px;
 }
@@ -37,11 +37,16 @@ header{
 
 .order-card h2{
   margin:0 0 10px 0;
+  display:flex;
+  justify-content:space-between;
 }
 
 .order-items{
   margin:10px 0;
   line-height:1.5;
+  background:#fdfdfd;
+  padding:8px;
+  border-radius:8px;
 }
 
 .order-total{
@@ -53,30 +58,34 @@ header{
 
 .order-status{
   margin-top:10px;
-  font-size:18px;
+  font-size:16px;
   font-weight:bold;
 }
 
 .payment-status{
   margin-top:5px;
-  font-size:18px;
+  font-size:16px;
   font-weight:bold;
   color:#2196f3;
 }
 
 .btn-group{
   display:grid;
-  grid-template-columns:1fr 1fr 1fr;
-  gap:10px;
+  grid-template-columns:1fr 1fr;
+  gap:8px;
   margin-top:15px;
+}
+
+.full-width{
+  grid-column: span 2;
 }
 
 button{
   border:none;
   padding:12px;
-  border-radius:10px;
+  border-radius:8px;
   color:white;
-  font-size:14px;
+  font-size:13px;
   font-weight:bold;
   cursor:pointer;
 }
@@ -87,6 +96,14 @@ button:hover{
 
 .pay-btn{
   background:#2196f3;
+}
+
+.prep-btn{
+  background:#9c27b0;
+}
+
+.serve-btn{
+  background:#4caf50;
 }
 
 .print-btn{
@@ -105,13 +122,11 @@ button:hover{
   🍜 COUNTER DASHBOARD
 </header>
 
-<div id="orders">Loading active orders...</div>
+<div id="orders">Loading active kitchen requests...</div>
 
 <script>
-// ⚠️ ENSURE THIS IS YOUR LATEST ACTIVE GOOGLE WEB APP URL
-  
-const API_URL =
-"https://script.google.com/macros/s/AKfycbyMEFw5aCyjy2S9hcF5y9QUj1VXRaKzL6sgv7fwxAKFKbGXo5jifOITAd4WKbA62wIL/exec";
+// ⚠️ ENSURE THIS MATCHES YOUR ACTIVE GOOGLE WEB APP URL
+const API_URL = "https://google.com";
 
 let currentOrders = [];
 
@@ -127,18 +142,16 @@ async function loadOrders(){
       return;
     }
 
-    // Capture entire array payload into master dashboard memory space
     currentOrders = data.orders;
 
-    // Filter cards to hide everything tagged as Closed
+    // Filter out orders that have been completely archived
     const activeOrders = data.orders.filter(o => String(o.status).toLowerCase() !== "closed");
 
     if(activeOrders.length === 0){
-      ordersDiv.innerHTML = "<h2 style='grid-column:1/-1; text-align:center; color:#777;'>No pending orders</h2>";
+      ordersDiv.innerHTML = "<h2 style='grid-column:1/-1; text-align:center; color:#777;'>All orders cleared! 🎉</h2>";
       return;
     }
 
-    // Render cards layout stack
     activeOrders.reverse().forEach(order=>{
       let itemsHTML = "";
       
@@ -148,63 +161,88 @@ async function loadOrders(){
       }
 
       parsedItems.forEach(item=>{
-        itemsHTML += `<div>${item.qty}x ${item.name}</div>`;
+        itemsHTML += `<div>⚡ <b>${item.qty}x</b> ${item.name}</div>`;
       });
 
       const isPaid = (order.paymentStatus || "").toUpperCase() === "PAID";
-      const cardBorder = isPaid ? "#4caf50" : "orange";
+      
+      // Dynamic boundary colors based on kitchen cooking state
+      let cardBorder = "orange";
+      if(order.status === "Preparing") cardBorder = "#9c27b0";
+      if(order.status === "Served") cardBorder = "#4caf50";
+
+      // Context-aware bottom button logic switcher
+      let workflowButton = `<button class="prep-btn" onclick="updateStatus(${order.row}, 'Preparing')">🍳 PREPARE</button>`;
+      if(order.status === "Preparing") {
+        workflowButton = `<button class="serve-btn" onclick="updateStatus(${order.row}, 'Served')">🚀 SERVE</button>`;
+      } else if (order.status === "Served") {
+        workflowButton = `<button class="close-btn" onclick="updateStatus(${order.row}, 'Closed')">📥 CLOSE & ARCHIVE</button>`;
+      }
 
       ordersDiv.innerHTML += `
         <div class="order-card" style="border-left:10px solid ${cardBorder}">
-          <h2>Pager ${order.pagerNo || "-"}</h2>
-          <div>Order No: ${order.orderNo || "-"}</div>
+          <h2><span>Pager ${order.pagerNo || "-"}</span> <span style="font-size:14px; color:#666;">#${order.orderNo || ''}</span></h2>
           <div class="order-items">${itemsHTML}</div>
           <div class="order-total">RM ${Number(order.total || 0).toFixed(2)}</div>
-          <div class="order-status">Status: ${order.status || "Pending"}</div>
+          <div class="order-status">Status: <span style="color:${cardBorder}">${order.status || "Pending"}</span></div>
           <div class="payment-status" style="color: ${isPaid ? '#4caf50' : '#2196f3'}">
             Payment: ${order.paymentStatus || "Unpaid"}
           </div>
+          
           <div class="btn-group">
             <button class="pay-btn" onclick="markPaid(${order.row})" ${isPaid ? 'disabled style="background:#ccc; cursor:default;"' : ''}>
-              ${isPaid ? 'PAID' : 'PAYMENT'}
+              ${isPaid ? '✓ PAID' : '💵 PAYMENT'}
             </button>
-            <button class="print-btn" onclick="printReceipt(${order.row})">PRINT</button>
-            <button class="close-btn" onclick="closeOrder(${order.row})">CLOSE</button>
+            <button class="print-btn" onclick="printReceipt(${order.row})">🖨️ PRINT</button>
+            <div class="full-width" style="display:grid; margin-top:5px;">
+              ${workflowButton}
+            </div>
           </div>
         </div>
       `;
     });
   }catch(error){
-    document.getElementById("orders").innerHTML = "<h2 style='grid-column:1/-1; text-align:center; color:red;'>Error loading data data pipeline connection stream</h2>";
     console.error(error);
   }
 }
 
-// 💵 OPTION 1: Update payment ledger column
+// 💵 BUTTON ACTION: Update payment column to PAID
 async function markPaid(row){
   try {
     const res = await fetch(API_URL + "?action=markPaid&row=" + row);
     const data = await res.json();
-
     if(data.success){
-      alert("Payment updated successfully!");
       loadOrders();
     } else {
       alert("Payment update failed.");
     }
   } catch (e) {
-    alert("Network verification request timeout.");
+    alert("Network error.");
   }
 }
 
-// 🖨️ OPTION 2: Trigger thermal popup receipt print engine
-function printReceipt(rowId) {
-  // Use row sequence indexing structure instead of tracking hash labels
-  const order = currentOrders.find(o => Number(o.row) === Number(rowId));
-  if (!order) {
-    alert("Error fetching matching ticket identity metadata values.");
-    return;
+// 🔄 WORKFLOW SWITCHER ACTION: Shifts Status (Pending -> Preparing -> Served -> Closed)
+async function updateStatus(row, nextState){
+  if(nextState === 'Closed' && !confirm("Archive this order card from the monitor screen?")) return;
+  
+  try {
+    // Send status change parameter, leave paymentStatus empty to protect your payment state value
+    const res = await fetch(API_URL + "?action=markPaid&row=" + row + "&status=" + nextState + "&paymentStatus=");
+    const data = await res.json();
+    if(data.success){
+      loadOrders();
+    } else {
+      alert("Failed to update kitchen status state.");
+    }
+  } catch (e) {
+    alert("Network request timeout error.");
   }
+}
+
+// 🖨️ PRINT ACTION: Prints out formatting slip
+function printReceipt(rowId) {
+  const order = currentOrders.find(o => Number(o.row) === Number(rowId));
+  if (!order) return;
 
   let itemsText = "";
   let parsedItems = Array.isArray(order.items) ? order.items : [];
@@ -217,66 +255,38 @@ function printReceipt(rowId) {
   });
 
   const printWindow = window.open('', '_blank', 'width=350,height=500');
-  
   if (!printWindow) {
-    alert("Pop-up window blocked by browser security settings! Please enable pop-ups for this site to print receipts.");
+    alert("Pop-up window blocked! Allow pop-ups to print receipts.");
     return;
   }
 
   printWindow.document.write(`
     <html>
     <head>
-      <title>Receipt - ${order.orderNo || 'POS'}</title>
+      <title>Receipt - ${order.orderNo}</title>
       <style>
-        body { font-family: 'Courier New', monospace; padding: 15px; text-align: center; color: #000; margin: 0; }
-        .dashed-line { border-top: 1px dashed #000; margin: 10px 0; width: 100%; }
+        body { font-family: 'Courier New', monospace; padding: 15px; text-align: center; color:#000; margin:0; }
+        .dashed-line { border-top: 1px dashed #000; margin: 10px 0; }
         .items-container { text-align: left; font-size: 14px; }
-        h3 { margin: 5px 0; }
-        p { margin: 5px 0; font-size: 14px; }
       </style>
     </head>
     <body>
       <h3>ALFA FOOD RESTAURANT</h3>
-      <p>Order No: ${order.orderNo || '-'}<br>Pager Code: ${order.pagerNo || '-'}</p>
+      <p>Order No: ${order.orderNo}<br>Pager: ${order.pagerNo}</p>
       <div class="dashed-line"></div>
-      <div class="items-container">${itemsText || '<p>No items items configured</p>'}</div>
+      <div class="items-container">${itemsText}</div>
       <div class="dashed-line"></div>
-      <h4 style="display:flex; justify-content:space-between; margin:5px 0;"><span>TOTAL:</span> <span>RM ${Number(order.total || 0).toFixed(2)}</span></h4>
-      <p style="font-size:12px; margin-top:15px;">Payment Status: ${order.paymentStatus || 'Unpaid'}</p>
-      <div style="font-size:11px; margin-top:5px;">Thank you! Please visit us again.</div>
-      <script>
-        // Trigger OS native printing system modal immediately upon initialization completion
-        setTimeout(function(){ window.print(); window.close(); }, 500);
-      <\/script>
+      <h4 style="display:flex; justify-content:space-between; margin:5px 0;"><span>TOTAL:</span> <span>RM ${Number(order.total).toFixed(2)}</span></h4>
+      <p style="font-size:12px; margin-top:15px;">Payment: ${order.paymentStatus}</p>
+      <script>setTimeout(function(){ window.print(); window.close(); }, 500);<\/script>
     </body>
     </html>
   `);
   printWindow.document.close();
 }
 
-// 📥 OPTION 3: Mark system tracking field as Closed
-async function closeOrder(row){
-  if(!confirm("Are you sure you want to clear this card from the screen?")) return;
-  
-  try {
-    // Append blank payment status to avoid resetting the column back to Paid or custom flags
-    const res = await fetch(API_URL + "?action=markPaid&row=" + row + "&status=Closed&paymentStatus=");
-    const data = await res.json();
-
-    if(data.success){
-      alert("Order successfully closed and archived!");
-      loadOrders();
-    } else {
-      alert("Database error: " + (data.message || "Could not execute archive action step."));
-    }
-  } catch (e) {
-    alert("Network delivery request error.");
-  }
-}
-
-// Ignition
+// Initialize Loop Engine
 loadOrders();
-// Core clock ticks loop to synchronize dashboard updates
 setInterval(loadOrders, 5000);
 </script>
 
