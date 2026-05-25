@@ -2,12 +2,11 @@
 <html>
 <head>
 <meta name="viewport" content="width=device-width, initial-scale=1">
-
 <title>Counter Dashboard</title>
 
 <style>
 body{
-  font-family:Arial;
+  font-family:Arial, sans-serif;
   margin:0;
   background:#f5f5f5;
 }
@@ -77,8 +76,13 @@ button{
   padding:12px;
   border-radius:10px;
   color:white;
-  font-size:16px;
+  font-size:14px;
+  font-weight:bold;
   cursor:pointer;
+}
+
+button:hover{
+  opacity: 0.85;
 }
 
 .pay-btn{
@@ -101,125 +105,156 @@ button{
 🍜 COUNTER DASHBOARD
 </header>
 
-<div id="orders"></div>
+<div id="orders">Loading active orders...</div>
 
 <script>
+// ⚠️ MAKE SURE THIS IS YOUR LATEST GOOGLE DEPLOYMENT URL
 const API_URL =
 "https://script.google.com/macros/s/AKfycbyMEFw5aCyjy2S9hcF5y9QUj1VXRaKzL6sgv7fwxAKFKbGXo5jifOITAd4WKbA62wIL/exec";
 
+let currentOrders = [];
+
 async function loadOrders(){
-
   try{
-
     const res = await fetch(API_URL + "?action=getOrders");
     const data = await res.json();
-
-    const ordersDiv =
-      document.getElementById("orders");
-
+    const ordersDiv = document.getElementById("orders");
     ordersDiv.innerHTML = "";
 
     if(!data.success || !data.orders || data.orders.length === 0){
-      ordersDiv.innerHTML = "<h2>No active orders</h2>";
+      ordersDiv.innerHTML = "<h2 style='grid-column:1/-1; text-align:center; color:#777;'>No active orders</h2>";
       return;
     }
 
-    data.orders.reverse().forEach(order=>{
+    currentOrders = data.orders;
 
+    // Filter out orders that have been archived via the CLOSE button
+    const activeOrders = data.orders.filter(o => o.status !== "Closed");
+
+    if(activeOrders.length === 0){
+      ordersDiv.innerHTML = "<h2 style='grid-column:1/-1; text-align:center; color:#777;'>No pending orders</h2>";
+      return;
+    }
+
+    // Display newest orders first
+    activeOrders.reverse().forEach(order=>{
       let itemsHTML = "";
+      
+      let parsedItems = Array.isArray(order.items) ? order.items : [];
+      if(typeof order.items === 'string'){
+         try { parsedItems = JSON.parse(order.items); } catch(e) { parsedItems = []; }
+      }
 
-      order.items.forEach(item=>{
-
-        itemsHTML += `
-          <div>
-            ${item.qty}x ${item.name}
-          </div>
-        `;
-
+      parsedItems.forEach(item=>{
+        itemsHTML += `<div>${item.qty}x ${item.name}</div>`;
       });
 
+      const isPaid = (order.paymentStatus || "").toUpperCase() === "PAID";
+      const cardBorder = isPaid ? "#4caf50" : "orange";
+
       ordersDiv.innerHTML += `
-
-        <div class="order-card">
-
-          <h2>
-            Pager ${order.pagerNo || "-"}
-          </h2>
-
-          <div>
-            Order No: ${order.orderNo}
-          </div>
-
-          <div class="order-items">
-            ${itemsHTML}
-          </div>
-
-          <div class="order-total">
-            RM ${Number(order.total).toFixed(2)}
-          </div>
-
-          <div class="order-status">
-            Status: ${order.status || "Pending"}
-          </div>
-
-          <div class="payment-status">
+        <div class="order-card" style="border-left:10px solid ${cardBorder}">
+          <h2>Pager ${order.pagerNo || "-"}</h2>
+          <div>Order No: ${order.orderNo}</div>
+          <div class="order-items">${itemsHTML}</div>
+          <div class="order-total">RM ${Number(order.total).toFixed(2)}</div>
+          <div class="order-status">Status: ${order.status || "Pending"}</div>
+          <div class="payment-status" style="color: ${isPaid ? '#4caf50' : '#2196f3'}">
             Payment: ${order.paymentStatus || "Unpaid"}
           </div>
-
           <div class="btn-group">
-
-            <button class="pay-btn" onclick="markPaid(${order.row})">
-              PAYMENT
+            <button class="pay-btn" onclick="markPaid(${order.row})" ${isPaid ? 'disabled style="background:#ccc; cursor:default;"' : ''}>
+              ${isPaid ? 'PAID' : 'PAYMENT'}
             </button>
-
-            <button class="print-btn">
-              PRINT
-            </button>
-
-            <button class="close-btn">
-              CLOSE
-            </button>
-
+            <button class="print-btn" onclick="printReceipt('${order.orderId}')">PRINT</button>
+            <button class="close-btn" onclick="closeOrder(${order.row})">CLOSE</button>
           </div>
-
         </div>
-
       `;
-
     });
-
   }catch(error){
-
-    document.getElementById("orders").innerHTML =
-      "<h2>Error loading orders</h2>";
-
-    console.log(error);
-
+    document.getElementById("orders").innerHTML = "<h2 style='grid-column:1/-1; text-align:center; color:red;'>Error loading data</h2>";
+    console.error(error);
   }
-
 }
 
+// BUTTON 1: Updates Payment column to PAID
 async function markPaid(row){
+  try {
+    const res = await fetch(API_URL + "?action=markPaid&row=" + row);
+    const data = await res.json();
 
-  const res =
-    await fetch(API_URL + "?action=markPaid&row=" + row);
-
-  const data =
-    await res.json();
-
-  if(data.success){
-    alert("Payment marked as PAID");
-    loadOrders();
-  }else{
-    alert("Payment failed");
+    if(data.success){
+      alert("Payment updated successfully!");
+      loadOrders();
+    } else {
+      alert("Payment update failed.");
+    }
+  } catch (e) {
+    alert("Network request timeout.");
   }
-
 }
 
-loadOrders();
+// BUTTON 2: Pops up a printer format receipt layout
+function printReceipt(orderId) {
+  const order = currentOrders.find(o => o.orderId === orderId);
+  if (!order) return;
 
-setInterval(loadOrders,5000);
+  let itemsText = "";
+  order.items.forEach(item => {
+    itemsText += `<p style="display:flex; justify-content:space-between;"><span>${item.name}</span> <span>x${item.qty}</span></p>`;
+  });
+
+  const printWindow = window.open('', '_blank', 'width=350,height=500');
+  printWindow.document.write(`
+    <html>
+    <head>
+      <title>Receipt - ${order.orderNo}</title>
+      <style>
+        body { font-family: 'Courier New', monospace; padding: 15px; text-align: center; }
+        .dashed-line { border-top: 1px dashed #000; margin: 10px 0; }
+        .items-container { text-align: left; }
+      </style>
+    </head>
+    <body>
+      <h3>ALFA FOOD</h3>
+      <p>Order No: ${order.orderNo}<br>Pager: ${order.pagerNo}</p>
+      <div class="dashed-line"></div>
+      <div class="items-container">${itemsText}</div>
+      <div class="dashed-line"></div>
+      <h4 style="display:flex; justify-content:space-between;"><span>TOTAL:</span> <span>RM ${Number(order.total).toFixed(2)}</span></h4>
+      <p style="font-size:12px;">Payment Method: Counter App</p>
+      <script>window.print(); window.close();<\/script>
+    </body>
+    </html>
+  `);
+  printWindow.document.close();
+}
+
+// BUTTON 3: Marks order status column as "Closed" to hide card from active view
+async function closeOrder(row){
+  if(!confirm("Are you sure you want to clear this card from the screen?")) return;
+  
+  try {
+    const res = await fetch(API_URL + "?action=markPaid&row=" + row + "&status=Closed&paymentStatus=");
+    const data = await res.json();
+
+    if(data.success){
+      alert("Order archived!");
+      loadOrders();
+    } else {
+      alert("Failed to archive order.");
+    }
+  } catch (e) {
+    alert("Network request error.");
+  }
+}
+
+// Initialize and loop check database every 5 seconds
+loadOrders();
+setInterval(loadOrders, 5000);
 </script>
 
 </body>
+</html>
 </html>
