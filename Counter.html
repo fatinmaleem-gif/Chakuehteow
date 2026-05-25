@@ -102,13 +102,14 @@ button:hover{
 <body>
 
 <header>
-🍜 COUNTER DASHBOARD
+  🍜 COUNTER DASHBOARD
 </header>
 
 <div id="orders">Loading active orders...</div>
 
 <script>
-// ⚠️ MAKE SURE THIS IS YOUR LATEST GOOGLE DEPLOYMENT URL
+// ⚠️ ENSURE THIS IS YOUR LATEST ACTIVE GOOGLE WEB APP URL
+  
 const API_URL =
 "https://script.google.com/macros/s/AKfycbyMEFw5aCyjy2S9hcF5y9QUj1VXRaKzL6sgv7fwxAKFKbGXo5jifOITAd4WKbA62wIL/exec";
 
@@ -126,17 +127,18 @@ async function loadOrders(){
       return;
     }
 
+    // Capture entire array payload into master dashboard memory space
     currentOrders = data.orders;
 
-    // Filter out orders that have been archived via the CLOSE button
-    const activeOrders = data.orders.filter(o => o.status !== "Closed");
+    // Filter cards to hide everything tagged as Closed
+    const activeOrders = data.orders.filter(o => String(o.status).toLowerCase() !== "closed");
 
     if(activeOrders.length === 0){
       ordersDiv.innerHTML = "<h2 style='grid-column:1/-1; text-align:center; color:#777;'>No pending orders</h2>";
       return;
     }
 
-    // Display newest orders first
+    // Render cards layout stack
     activeOrders.reverse().forEach(order=>{
       let itemsHTML = "";
       
@@ -155,9 +157,9 @@ async function loadOrders(){
       ordersDiv.innerHTML += `
         <div class="order-card" style="border-left:10px solid ${cardBorder}">
           <h2>Pager ${order.pagerNo || "-"}</h2>
-          <div>Order No: ${order.orderNo}</div>
+          <div>Order No: ${order.orderNo || "-"}</div>
           <div class="order-items">${itemsHTML}</div>
-          <div class="order-total">RM ${Number(order.total).toFixed(2)}</div>
+          <div class="order-total">RM ${Number(order.total || 0).toFixed(2)}</div>
           <div class="order-status">Status: ${order.status || "Pending"}</div>
           <div class="payment-status" style="color: ${isPaid ? '#4caf50' : '#2196f3'}">
             Payment: ${order.paymentStatus || "Unpaid"}
@@ -166,19 +168,19 @@ async function loadOrders(){
             <button class="pay-btn" onclick="markPaid(${order.row})" ${isPaid ? 'disabled style="background:#ccc; cursor:default;"' : ''}>
               ${isPaid ? 'PAID' : 'PAYMENT'}
             </button>
-            <button class="print-btn" onclick="printReceipt('${order.orderId}')">PRINT</button>
+            <button class="print-btn" onclick="printReceipt(${order.row})">PRINT</button>
             <button class="close-btn" onclick="closeOrder(${order.row})">CLOSE</button>
           </div>
         </div>
       `;
     });
   }catch(error){
-    document.getElementById("orders").innerHTML = "<h2 style='grid-column:1/-1; text-align:center; color:red;'>Error loading data</h2>";
+    document.getElementById("orders").innerHTML = "<h2 style='grid-column:1/-1; text-align:center; color:red;'>Error loading data data pipeline connection stream</h2>";
     console.error(error);
   }
 }
 
-// BUTTON 1: Updates Payment column to PAID
+// 💵 OPTION 1: Update payment ledger column
 async function markPaid(row){
   try {
     const res = await fetch(API_URL + "?action=markPaid&row=" + row);
@@ -191,70 +193,92 @@ async function markPaid(row){
       alert("Payment update failed.");
     }
   } catch (e) {
-    alert("Network request timeout.");
+    alert("Network verification request timeout.");
   }
 }
 
-// BUTTON 2: Pops up a printer format receipt layout
-function printReceipt(orderId) {
-  const order = currentOrders.find(o => o.orderId === orderId);
-  if (!order) return;
+// 🖨️ OPTION 2: Trigger thermal popup receipt print engine
+function printReceipt(rowId) {
+  // Use row sequence indexing structure instead of tracking hash labels
+  const order = currentOrders.find(o => Number(o.row) === Number(rowId));
+  if (!order) {
+    alert("Error fetching matching ticket identity metadata values.");
+    return;
+  }
 
   let itemsText = "";
-  order.items.forEach(item => {
-    itemsText += `<p style="display:flex; justify-content:space-between;"><span>${item.name}</span> <span>x${item.qty}</span></p>`;
+  let parsedItems = Array.isArray(order.items) ? order.items : [];
+  if(typeof order.items === 'string'){
+     try { parsedItems = JSON.parse(order.items); } catch(e) { parsedItems = []; }
+  }
+
+  parsedItems.forEach(item => {
+    itemsText += `<p style="display:flex; justify-content:space-between; margin:4px 0;"><span>${item.name}</span> <span>x${item.qty}</span></p>`;
   });
 
   const printWindow = window.open('', '_blank', 'width=350,height=500');
+  
+  if (!printWindow) {
+    alert("Pop-up window blocked by browser security settings! Please enable pop-ups for this site to print receipts.");
+    return;
+  }
+
   printWindow.document.write(`
     <html>
     <head>
-      <title>Receipt - ${order.orderNo}</title>
+      <title>Receipt - ${order.orderNo || 'POS'}</title>
       <style>
-        body { font-family: 'Courier New', monospace; padding: 15px; text-align: center; }
-        .dashed-line { border-top: 1px dashed #000; margin: 10px 0; }
-        .items-container { text-align: left; }
+        body { font-family: 'Courier New', monospace; padding: 15px; text-align: center; color: #000; margin: 0; }
+        .dashed-line { border-top: 1px dashed #000; margin: 10px 0; width: 100%; }
+        .items-container { text-align: left; font-size: 14px; }
+        h3 { margin: 5px 0; }
+        p { margin: 5px 0; font-size: 14px; }
       </style>
     </head>
     <body>
-      <h3>ALFA FOOD</h3>
-      <p>Order No: ${order.orderNo}<br>Pager: ${order.pagerNo}</p>
+      <h3>ALFA FOOD RESTAURANT</h3>
+      <p>Order No: ${order.orderNo || '-'}<br>Pager Code: ${order.pagerNo || '-'}</p>
       <div class="dashed-line"></div>
-      <div class="items-container">${itemsText}</div>
+      <div class="items-container">${itemsText || '<p>No items items configured</p>'}</div>
       <div class="dashed-line"></div>
-      <h4 style="display:flex; justify-content:space-between;"><span>TOTAL:</span> <span>RM ${Number(order.total).toFixed(2)}</span></h4>
-      <p style="font-size:12px;">Payment Method: Counter App</p>
-      <script>window.print(); window.close();<\/script>
+      <h4 style="display:flex; justify-content:space-between; margin:5px 0;"><span>TOTAL:</span> <span>RM ${Number(order.total || 0).toFixed(2)}</span></h4>
+      <p style="font-size:12px; margin-top:15px;">Payment Status: ${order.paymentStatus || 'Unpaid'}</p>
+      <div style="font-size:11px; margin-top:5px;">Thank you! Please visit us again.</div>
+      <script>
+        // Trigger OS native printing system modal immediately upon initialization completion
+        setTimeout(function(){ window.print(); window.close(); }, 500);
+      <\/script>
     </body>
     </html>
   `);
   printWindow.document.close();
 }
 
-// BUTTON 3: Marks order status column as "Closed" to hide card from active view
+// 📥 OPTION 3: Mark system tracking field as Closed
 async function closeOrder(row){
   if(!confirm("Are you sure you want to clear this card from the screen?")) return;
   
   try {
+    // Append blank payment status to avoid resetting the column back to Paid or custom flags
     const res = await fetch(API_URL + "?action=markPaid&row=" + row + "&status=Closed&paymentStatus=");
     const data = await res.json();
 
     if(data.success){
-      alert("Order archived!");
+      alert("Order successfully closed and archived!");
       loadOrders();
     } else {
-      alert("Failed to archive order.");
+      alert("Database error: " + (data.message || "Could not execute archive action step."));
     }
   } catch (e) {
-    alert("Network request error.");
+    alert("Network delivery request error.");
   }
 }
 
-// Initialize and loop check database every 5 seconds
+// Ignition
 loadOrders();
+// Core clock ticks loop to synchronize dashboard updates
 setInterval(loadOrders, 5000);
 </script>
 
 </body>
-</html>
 </html>
