@@ -6,7 +6,6 @@
 <title>Counter Dashboard</title>
 
 <style>
-
 body{
   font-family:Arial;
   margin:0;
@@ -59,9 +58,16 @@ header{
   font-weight:bold;
 }
 
+.payment-status{
+  margin-top:5px;
+  font-size:18px;
+  font-weight:bold;
+  color:#2196f3;
+}
+
 .btn-group{
   display:grid;
-  grid-template-columns:1fr 1fr;
+  grid-template-columns:1fr 1fr 1fr;
   gap:10px;
   margin-top:15px;
 }
@@ -86,7 +92,6 @@ button{
 .close-btn{
   background:#777;
 }
-
 </style>
 </head>
 
@@ -99,9 +104,8 @@ button{
 <div id="orders"></div>
 
 <script>
-
 const API_URL =
-"https://script.google.com/macros/s/AKfycbz9xkPw86ZG1OjPBrlsbFlcdoQCq3TZLsuxTtQ18z8cLZC18eJIxrgPQe5Wn2Oawd_J/exec";
+"https://script.google.com/macros/s/AKfycbxMuPVtn0yUl0O1Ok1OeymH3L-K_ddXB1iWERALAJHiaRnSiPHl5McKKRxHJGP0xDAQ/exec";
 
 async function loadOrders(){
 
@@ -111,9 +115,14 @@ async function loadOrders(){
     const data = await res.json();
 
     const ordersDiv =
-    document.getElementById("orders");
+      document.getElementById("orders");
 
     ordersDiv.innerHTML = "";
+
+    if(!data.success || !data.orders || data.orders.length === 0){
+      ordersDiv.innerHTML = "<h2>No active orders</h2>";
+      return;
+    }
 
     data.orders.reverse().forEach(order=>{
 
@@ -134,12 +143,11 @@ async function loadOrders(){
         <div class="order-card">
 
           <h2>
-            Pager ${order.pagerNo}
+            Pager ${order.pagerNo || "-"}
           </h2>
 
           <div>
-            Order No:
-            ${order.orderNo}
+            Order No: ${order.orderNo}
           </div>
 
           <div class="order-items">
@@ -151,21 +159,25 @@ async function loadOrders(){
           </div>
 
           <div class="order-status">
-            ${order.status || "NEW"}
+            Status: ${order.status || "Pending"}
+          </div>
+
+          <div class="payment-status">
+            Payment: ${order.paymentStatus || "Unpaid"}
           </div>
 
           <div class="btn-group">
 
-            <button class="pay-btn">
-            PAYMENT
+            <button class="pay-btn" onclick="markPaid(${order.row})">
+              PAYMENT
             </button>
 
             <button class="print-btn">
-             PRINT
+              PRINT
             </button>
 
             <button class="close-btn">
-             CLOSE
+              CLOSE
             </button>
 
           </div>
@@ -178,8 +190,28 @@ async function loadOrders(){
 
   }catch(error){
 
+    document.getElementById("orders").innerHTML =
+      "<h2>Error loading orders</h2>";
+
     console.log(error);
 
+  }
+
+}
+
+async function markPaid(row){
+
+  const res =
+    await fetch(API_URL + "?action=markPaid&row=" + row);
+
+  const data =
+    await res.json();
+
+  if(data.success){
+    alert("Payment marked as PAID");
+    loadOrders();
+  }else{
+    alert("Payment failed");
   }
 
 }
@@ -187,9 +219,7 @@ async function loadOrders(){
 loadOrders();
 
 setInterval(loadOrders,5000);
-
 </script>
 
 </body>
 </html>
-
