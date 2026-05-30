@@ -292,7 +292,9 @@ function openOptions(product){
   const optionsDiv = document.getElementById("dynamicOptions");
   optionsDiv.innerHTML = "";
 
-  if(product.category.includes("CHAR KUEY TIAW")){
+  
+
+  if(String(product.category).toUpperCase().includes("KUEY")){
     optionsDiv.innerHTML = `
       <div class="option-group">
         <b>Spicy Level</b>
@@ -340,7 +342,7 @@ function confirmOptions(){
   let drizzle = "";
   let extraPrice = 0;
 
-  if(selectedProduct.category.includes("CHAR KUEY TIAW")){
+  if(selectedProduct.category.includes("KUEY TIAW")){
     spicy = document.querySelector('input[name="spicy"]:checked').value;
     sayur = document.querySelector('input[name="sayur"]:checked').value;
 
