@@ -268,15 +268,44 @@ function printReceipt(rowId) {
       <title>Receipt - ${order.orderNo}</title>
       <style>
         body { font-family: 'Courier New', monospace; padding: 15px; text-align: center; color:#000; margin:0; }
-        .dashed-line { border-top: 1px dashed #000; margin: 10px 0; }
+        
+        /* 🌟 NEW: Prevents text stacking or overlapping */
+        .receipt-header {
+          display: block;
+          width: 100%;
+          margin-bottom: 12px;
+        }
+        
+        /* Explicit font and height boundaries for logo tracking */
+        .receipt-logo { 
+          font-size: 18px; 
+          font-weight: bold; 
+          margin: 0 0 8px 0; 
+          line-height: 1.2; 
+        }
+        
+        /* Explicit line height properties for order metrics */
+        .receipt-meta { 
+          font-size: 14px; 
+          margin: 0; 
+          line-height: 1.4; 
+        }
+        
+        .dashed-line { border-top: 1px dashed #000; margin: 10px 0; display: block; clear: both; }
         .items-container { text-align: left; font-size: 14px; }
       </style>
     </head>
     <body>
-      <h3>CHAR KUEY TEOW </h3>
-            WOK HEI
-            TAIPING
-      <p>Order No: ${order.orderNo}<br>Pager: ${order.pagerNo}</p>
+      
+      <!-- 🌟 NEW: Wrapped structural container blocks text components safely -->
+      <div class="receipt-header">
+        <div class="receipt-logo">ALFA FOOD RESTAURANT</div>
+        <p class="receipt-meta">
+          Order No: ${order.orderNo}<br>
+          Pager: ${order.pagerNo}
+        </p>
+      </div>
+      
       <div class="dashed-line"></div>
       <div class="items-container">${itemsText}</div>
       <div class="dashed-line"></div>
