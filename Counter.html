@@ -240,19 +240,85 @@ async function updateStatus(row, nextState){
     alert("Network request timeout error.");
   }
 }
+async function paymentDone() {
+  // Capture current order details before clearing
+  const paidCart = JSON.parse(JSON.stringify(cart));
+  const paidOrderNo = pendingOrderNo;
+  const paidTotal = pendingTotal;
 
-// 🖨️ PRINT ACTION: Prints out formatting slip
-function printReceipt(rowId) {
-  const order = currentOrders.find(o => Number(o.row) === Number(rowId));
-  if (!order) return;
+  // Prepare data for Google Sheets
+  const orderData = {
+    action: "createOrder",
+    orderNo: paidOrderNo,
+    orderType: "Dine In",
+    tableNo: "Kiosk",
+    items: paidCart,
+    total: paidTotal.toFixed(2)
+  };
 
-  let itemsText = "";
-  let parsedItems = Array.isArray(order.items) ? order.items : [];
-  if(typeof order.items === 'string'){
-     try { parsedItems = JSON.parse(order.items); } catch(e) { parsedItems = []; }
+  // 1. Send data to Google in the background (No-CORS prevents freezing)
+  fetch("https://google.com", {
+    method: "POST",
+    mode: "no-cors", 
+    body: JSON.stringify(orderData)
+  }).catch(err => console.log("Google sync background error skipped."));
+
+  // 2. Close the payment QR window immediately
+  closePayment();
+
+  // 3. FORCE RESET CART IMMEDIATELY (Fixes the 2nd customer issue on Android)
+  cart = [];      
+  renderCart();   
+  pendingOrderNo = "";
+  pendingTotal = 0;
+
+  // 4. Show Digital Receipt on Screen (Works beautifully on Samsung Tab)
+  showDigitalReceipt(paidOrderNo, paidTotal, paidCart);
+}
+
+// New function to display the receipt safely on all devices
+function showDigitalReceipt(orderNo, total, items) {
+  // Create or reuse a receipt modal container
+  let receiptModal = document.getElementById("digitalReceiptModal");
+  if (!receiptModal) {
+    receiptModal = document.createElement("div");
+    receiptModal.id = "digitalReceiptModal";
+    receiptModal.style = "position:fixed; inset:0; background:rgba(0,0,0,0.8); z-index:2000; display:flex; align-items:center; justify-content:center;";
+    document.body.appendChild(receiptModal);
   }
 
-  parsedItems.forEach(item => {
+  let itemsHtml = items.map(item => 
+    `<div style="display:flex; justify-content:between; font-size:14px; font-family:monospace; margin:4px 0;">
+      <span>${item.qty}x ${item.name.substring(0,18)}</span>
+      <span style="margin-left:auto;">RM ${(item.price * item.qty).toFixed(2)}</span>
+    </div>`
+  ).join("");
+
+  receiptModal.innerHTML = `
+    <div style="background:white; padding:20px; border-radius:12px; width:320px; text-align:center; box-shadow:0 4px 15px rgba(0,0,0,0.3);">
+      <h2 style="margin:0 0 10px 0; color:#333;">SUCCESS!</h2>
+      <div style="background:#f9f9f9; padding:15px; border-radius:8px; border:1px dashed #bbb; text-align:left;">
+        <h3 style="text-align:center; margin-top:0;">ORDER NO: ${orderNo}</h3>
+        <hr style="border-top:1px dashed #bbb;">
+        ${itemsHtml}
+        <hr style="border-top:1px dashed #bbb;">
+        <div style="display:flex; justify-content:space-between; font-weight:bold; font-size:16px;">
+          <span>TOTAL PAID:</span>
+          <span>RM ${total.toFixed(2)}</span>
+        </div>
+      </div>
+      <br>
+      <button onclick="document.getElementById('digitalReceiptModal').style.display='none';" 
+              style="background:#ff9800; color:white; border:none; padding:12px; font-size:16px; border-radius:6px; width:100%; cursor:pointer; font-weight:bold;">
+        NEXT ORDER
+      </button>
+    </div>
+  `;
+  
+  receiptModal.style.display = "flex";
+}
+
+    parsedItems.forEach(item => {
     itemsText += `<p style="display:flex; justify-content:space-between; margin:4px 0;"><span>${item.name}</span> <span>x${item.qty}</span></p>`;
   });
 
