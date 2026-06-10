@@ -113,6 +113,33 @@ button:hover{
 .close-btn{
   background:#777;
 }
+
+/* 🌟 THERMAL PRINTING INJECTIONS FOR XP-K58G */
+@media print {
+  body > *:not(#thermalPrintSection) { 
+    display: none !important; 
+  }
+  #thermalPrintSection, #thermalPrintSection * { 
+    display: block !important; 
+  }
+  #thermalPrintSection { 
+    position: absolute; 
+    left: 0; 
+    top: 0; 
+    width: 58mm; 
+    padding: 4px;
+    background: white;
+  }
+  #thermalPrintSection div {
+    display: flex !important;
+  }
+}
+
+#thermalPrintSection { 
+  display: none; 
+  font-family: 'Courier New', monospace; 
+  color: #000;
+}
 </style>
 </head>
 
@@ -124,11 +151,12 @@ button:hover{
 
 <div id="orders">Loading active kitchen requests...</div>
 
-<script>
-// ⚠️ ENSURE THIS MATCHES YOUR ACTIVE GOOGLE WEB APP URL
+<!-- Hidden native target layer avoiding crashing Pop-Up blockers on mobile layout elements -->
+<div id="thermalPrintSection"></div>
 
-const API_URL =
-"https://script.google.com/macros/s/AKfycbyMEFw5aCyjy2S9hcF5y9QUj1VXRaKzL6sgv7fwxAKFKbGXo5jifOITAd4WKbA62wIL/exec";
+<script>
+// ⚠️ MATCHES YOUR ACTIVE GOOGLE WEB APP URL
+const API_URL = "https://script.google.com/macros/s/AKfycbyMEFw5aCyjy2S9hcF5y9QUj1VXRaKzL6sgv7fwxAKFKbGXo5jifOITAd4WKbA62wIL/exec";
 
 let currentOrders = [];
 
@@ -146,7 +174,6 @@ async function loadOrders(){
 
     currentOrders = data.orders;
 
-    // Filter out orders that have been completely archived
     const activeOrders = data.orders.filter(o => String(o.status).toLowerCase() !== "closed");
 
     if(activeOrders.length === 0){
@@ -168,12 +195,10 @@ async function loadOrders(){
 
       const isPaid = (order.paymentStatus || "").toUpperCase() === "PAID";
       
-      // Dynamic boundary colors based on kitchen cooking state
       let cardBorder = "orange";
       if(order.status === "Preparing") cardBorder = "#9c27b0";
       if(order.status === "Served") cardBorder = "#4caf50";
 
-      // Context-aware bottom button logic switcher
       let workflowButton = `<button class="prep-btn" onclick="updateStatus(${order.row}, 'Preparing')">🍳 PREPARE</button>`;
       if(order.status === "Preparing") {
         workflowButton = `<button class="serve-btn" onclick="updateStatus(${order.row}, 'Served')">🚀 SERVE</button>`;
@@ -205,189 +230,72 @@ async function loadOrders(){
     });
   }catch(error){
     console.error(error);
+    document.getElementById("orders").innerHTML = "<h2 style='text-align:center; color:red;'>Error matching layout database variables.</h2>";
   }
 }
 
-// 💵 BUTTON ACTION: Update payment column to PAID
 async function markPaid(row){
   try {
     const res = await fetch(API_URL + "?action=markPaid&row=" + row);
     const data = await res.json();
-    if(data.success){
-      loadOrders();
-    } else {
-      alert("Payment update failed.");
-    }
-  } catch (e) {
-    alert("Network error.");
-  }
+    if(data.success) { loadOrders(); } else { alert("Payment update failed."); }
+  } catch (e) { alert("Network error."); }
 }
 
-// 🔄 WORKFLOW SWITCHER ACTION: Shifts Status (Pending -> Preparing -> Served -> Closed)
 async function updateStatus(row, nextState){
   if(nextState === 'Closed' && !confirm("Archive this order card from the monitor screen?")) return;
-  
   try {
-    // Send status change parameter, leave paymentStatus empty to protect your payment state value
     const res = await fetch(API_URL + "?action=markPaid&row=" + row + "&status=" + nextState + "&paymentStatus=");
     const data = await res.json();
-    if(data.success){
-      loadOrders();
-    } else {
-      alert("Failed to update kitchen status state.");
-    }
-  } catch (e) {
-    alert("Network request timeout error.");
-  }
-}
-async function paymentDone() {
-  // Capture current order details before clearing
-  const paidCart = JSON.parse(JSON.stringify(cart));
-  const paidOrderNo = pendingOrderNo;
-  const paidTotal = pendingTotal;
-
-  // Prepare data for Google Sheets
-  const orderData = {
-    action: "createOrder",
-    orderNo: paidOrderNo,
-    orderType: "Dine In",
-    tableNo: "Kiosk",
-    items: paidCart,
-    total: paidTotal.toFixed(2)
-  };
-
-  // 1. Send data to Google in the background (No-CORS prevents freezing)
-  fetch("https://google.com", {
-    method: "POST",
-    mode: "no-cors", 
-    body: JSON.stringify(orderData)
-  }).catch(err => console.log("Google sync background error skipped."));
-
-  // 2. Close the payment QR window immediately
-  closePayment();
-
-  // 3. FORCE RESET CART IMMEDIATELY (Fixes the 2nd customer issue on Android)
-  cart = [];      
-  renderCart();   
-  pendingOrderNo = "";
-  pendingTotal = 0;
-
-  // 4. Show Digital Receipt on Screen (Works beautifully on Samsung Tab)
-  showDigitalReceipt(paidOrderNo, paidTotal, paidCart);
+    if(data.success) { loadOrders(); } else { alert("Failed to update kitchen status state."); }
+  } catch (e) { alert("Network request timeout error."); }
 }
 
-// New function to display the receipt safely on all devices
-function showDigitalReceipt(orderNo, total, items) {
-  // Create or reuse a receipt modal container
-  let receiptModal = document.getElementById("digitalReceiptModal");
-  if (!receiptModal) {
-    receiptModal = document.createElement("div");
-    receiptModal.id = "digitalReceiptModal";
-    receiptModal.style = "position:fixed; inset:0; background:rgba(0,0,0,0.8); z-index:2000; display:flex; align-items:center; justify-content:center;";
-    document.body.appendChild(receiptModal);
+// 🖨️ PRINT ACTION: Fixed layout printing system targeting mobile tablets safely
+function printReceipt(rowId) {
+  const order = currentOrders.find(o => Number(o.row) === Number(rowId));
+  if (!order) return;
+
+  let parsedItems = Array.isArray(order.items) ? order.items : [];
+  if(typeof order.items === 'string'){
+     try { parsedItems = JSON.parse(order.items); } catch(e) { parsedItems = []; }
   }
 
-  let itemsHtml = items.map(item => 
-    `<div style="display:flex; justify-content:between; font-size:14px; font-family:monospace; margin:4px 0;">
+  let itemsHTML = parsedItems.map(item => `
+    <div style="display:flex; justify-content:space-between; margin:4px 0; font-size:13px;">
       <span>${item.qty}x ${item.name.substring(0,18)}</span>
-      <span style="margin-left:auto;">RM ${(item.price * item.qty).toFixed(2)}</span>
-    </div>`
-  ).join("");
-
-  receiptModal.innerHTML = `
-    <div style="background:white; padding:20px; border-radius:12px; width:320px; text-align:center; box-shadow:0 4px 15px rgba(0,0,0,0.3);">
-      <h2 style="margin:0 0 10px 0; color:#333;">SUCCESS!</h2>
-      <div style="background:#f9f9f9; padding:15px; border-radius:8px; border:1px dashed #bbb; text-align:left;">
-        <h3 style="text-align:center; margin-top:0;">ORDER NO: ${orderNo}</h3>
-        <hr style="border-top:1px dashed #bbb;">
-        ${itemsHtml}
-        <hr style="border-top:1px dashed #bbb;">
-        <div style="display:flex; justify-content:space-between; font-weight:bold; font-size:16px;">
-          <span>TOTAL PAID:</span>
-          <span>RM ${total.toFixed(2)}</span>
-        </div>
-      </div>
-      <br>
-      <button onclick="document.getElementById('digitalReceiptModal').style.display='none';" 
-              style="background:#ff9800; color:white; border:none; padding:12px; font-size:16px; border-radius:6px; width:100%; cursor:pointer; font-weight:bold;">
-        NEXT ORDER
-      </button>
+      <span>RM ${(Number(item.price || 0) * item.qty).toFixed(2)}</span>
     </div>
+  `).join("");
+
+  const printArea = document.getElementById("thermalPrintSection");
+  printArea.innerHTML = `
+    <div style="text-align:center; width:100%;">
+      <div style="font-size:18px; font-weight:bold; margin-bottom:8px;">ALFA FOOD RESTAURANT</div>
+      <p style="font-size:13px; margin:0; line-height:1.4;">
+        Order: ${order.orderNo || '-'} | Pager: ${order.pagerNo || '-'}<br>
+        Status: ${order.status || 'Pending'}
+      </p>
+    </div>
+    <div style="border-top:1px dashed #000; margin:10px 0;"></div>
+    <div>${itemsHTML}</div>
+    <div style="border-top:1px dashed #000; margin:10px 0;"></div>
+    <div style="display:flex; justify-content:space-between; font-weight:bold; font-size:15px;">
+      <span>TOTAL:</span>
+      <span>RM ${Number(order.total || 0).toFixed(2)}</span>
+    </div>
+    <div style="text-align:center; font-size:11px; margin-top:15px; letter-spacing:1px;">
+      THANK YOU! PLEASE COME AGAIN
+    </div>
+    <br><br>.
   `;
-  
-  receiptModal.style.display = "flex";
+
+  window.print();
 }
 
-    parsedItems.forEach(item => {
-    itemsText += `<p style="display:flex; justify-content:space-between; margin:4px 0;"><span>${item.name}</span> <span>x${item.qty}</span></p>`;
-  });
-
-  const printWindow = window.open('', '_blank', 'width=350,height=500');
-  if (!printWindow) {
-    alert("Pop-up window blocked! Allow pop-ups to print receipts.");
-    return;
-  }
-
-  printWindow.document.write(`
-    <html>
-    <head>
-      <title>Receipt - ${order.orderNo}</title>
-      <style>
-        body { font-family: 'Courier New', monospace; padding: 15px; text-align: center; color:#000; margin:0; }
-        
-        /* 🌟 NEW: Prevents text stacking or overlapping */
-        .receipt-header {
-          display: block;
-          width: 100%;
-          margin-bottom: 12px;
-        }
-        
-        /* Explicit font and height boundaries for logo tracking */
-        .receipt-logo { 
-          font-size: 18px; 
-          font-weight: bold; 
-          margin: 0 0 8px 0; 
-          line-height: 1.2; 
-        }
-        
-        /* Explicit line height properties for order metrics */
-        .receipt-meta { 
-          font-size: 14px; 
-          margin: 0; 
-          line-height: 1.4; 
-        }
-        
-        .dashed-line { border-top: 1px dashed #000; margin: 10px 0; display: block; clear: both; }
-        .items-container { text-align: left; font-size: 14px; }
-      </style>
-    </head>
-    <body>
-      
-      <!-- 🌟 NEW: Wrapped structural container blocks text components safely -->
-      <div class="receipt-header">
-        <div class="receipt-logo">ALFA FOOD RESTAURANT</div>
-        <p class="receipt-meta">
-          Order No: ${order.orderNo}<br>
-          Pager: ${order.pagerNo}
-        </p>
-      </div>
-      
-      <div class="dashed-line"></div>
-      <div class="items-container">${itemsText}</div>
-      <div class="dashed-line"></div>
-      <h4 style="display:flex; justify-content:space-between; margin:5px 0;"><span>TOTAL:</span> <span>RM ${Number(order.total).toFixed(2)}</span></h4>
-      <p style="font-size:12px; margin-top:15px;">Payment: ${order.paymentStatus}</p>
-      <script>setTimeout(function(){ window.print(); window.close(); }, 500);<\/script>
-    </body>
-    </html>
-  `);
-  printWindow.document.close();
-}
-
-// Initialize Loop Engine
+// Automatically spin up order checks and set background refresh interval sweeps
 loadOrders();
-setInterval(loadOrders, 5000);
+setInterval(loadOrders, 12000);
 </script>
-
 </body>
 </html>
