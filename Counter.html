@@ -288,7 +288,7 @@ function printReceipt(rowId) {
   `);
   printWindow.document.close();
 }
-function printReceiptRawBT(order) {
+function printReceiptRawBT(order, itemsText) {
 
   let receipt =
 `TAIPING
@@ -313,7 +313,7 @@ THANK YOU`;
     encodeURIComponent(receipt) +
     "#Intent;scheme=rawbt;package=ru.a402d.rawbtprinter;end";
 }
-// Initialize Loop Engine
+  // Initialize Loop Engine
 loadOrders();
 setInterval(loadOrders, 5000);
 </script>
