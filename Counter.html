@@ -288,11 +288,30 @@ function printReceipt(rowId) {
   `);
   printWindow.document.close();
 }
-function printReceipt(orderText) {
-  const encoded = encodeURIComponent(orderText);
+function printReceiptRawBT(order) {
+
+  let receipt =
+`TAIPING
+WOK HEI
+CHAR KUEY TEOW
+
+Order No: ${order.orderNo}
+Pager: ${order.pagerNo}
+
+${itemsText}
+
+----------------
+TOTAL: RM ${Number(order.total).toFixed(2)}
+----------------
+
+Payment: ${order.paymentStatus}
+
+THANK YOU`;
 
   window.location.href =
-    "rawbt:base64," + btoa(unescape(encodeURIComponent(orderText)));
+    "intent:" +
+    encodeURIComponent(receipt) +
+    "#Intent;scheme=rawbt;package=ru.a402d.rawbtprinter;end";
 }
 // Initialize Loop Engine
 loadOrders();
