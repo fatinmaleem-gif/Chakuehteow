@@ -288,7 +288,12 @@ function printReceipt(rowId) {
   `);
   printWindow.document.close();
 }
+function printReceipt(orderText) {
+  const encoded = encodeURIComponent(orderText);
 
+  window.location.href =
+    "rawbt:base64," + btoa(unescape(encodeURIComponent(orderText)));
+}
 // Initialize Loop Engine
 loadOrders();
 setInterval(loadOrders, 5000);
