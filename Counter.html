@@ -113,33 +113,6 @@ button:hover{
 .close-btn{
   background:#777;
 }
-
-/* 🌟 THERMAL PRINTING INJECTIONS FOR XP-K58G */
-@media print {
-  body > *:not(#thermalPrintSection) { 
-    display: none !important; 
-  }
-  #thermalPrintSection, #thermalPrintSection * { 
-    display: block !important; 
-  }
-  #thermalPrintSection { 
-    position: absolute; 
-    left: 0; 
-    top: 0; 
-    width: 58mm; 
-    padding: 4px;
-    background: white;
-  }
-  #thermalPrintSection div {
-    display: flex !important;
-  }
-}
-
-#thermalPrintSection { 
-  display: none; 
-  font-family: 'Courier New', monospace; 
-  color: #000;
-}
 </style>
 </head>
 
@@ -151,12 +124,11 @@ button:hover{
 
 <div id="orders">Loading active kitchen requests...</div>
 
-<!-- Hidden native target layer avoiding crashing Pop-Up blockers on mobile layout elements -->
-<div id="thermalPrintSection"></div>
-
 <script>
-// ⚠️ MATCHES YOUR ACTIVE GOOGLE WEB APP URL
-const API_URL = "https://script.google.com/macros/s/AKfycbyMEFw5aCyjy2S9hcF5y9QUj1VXRaKzL6sgv7fwxAKFKbGXo5jifOITAd4WKbA62wIL/exec";
+// ⚠️ ENSURE THIS MATCHES YOUR ACTIVE GOOGLE WEB APP URL
+
+const API_URL =
+"https://script.google.com/macros/s/AKfycbyMEFw5aCyjy2S9hcF5y9QUj1VXRaKzL6sgv7fwxAKFKbGXo5jifOITAd4WKbA62wIL/exec";
 
 let currentOrders = [];
 
@@ -174,6 +146,7 @@ async function loadOrders(){
 
     currentOrders = data.orders;
 
+    // Filter out orders that have been completely archived
     const activeOrders = data.orders.filter(o => String(o.status).toLowerCase() !== "closed");
 
     if(activeOrders.length === 0){
@@ -195,10 +168,12 @@ async function loadOrders(){
 
       const isPaid = (order.paymentStatus || "").toUpperCase() === "PAID";
       
+      // Dynamic boundary colors based on kitchen cooking state
       let cardBorder = "orange";
       if(order.status === "Preparing") cardBorder = "#9c27b0";
       if(order.status === "Served") cardBorder = "#4caf50";
 
+      // Context-aware bottom button logic switcher
       let workflowButton = `<button class="prep-btn" onclick="updateStatus(${order.row}, 'Preparing')">🍳 PREPARE</button>`;
       if(order.status === "Preparing") {
         workflowButton = `<button class="serve-btn" onclick="updateStatus(${order.row}, 'Served')">🚀 SERVE</button>`;
@@ -230,93 +205,92 @@ async function loadOrders(){
     });
   }catch(error){
     console.error(error);
-    document.getElementById("orders").innerHTML = "<h2 style='text-align:center; color:red;'>Error matching layout database variables.</h2>";
   }
 }
 
+// 💵 BUTTON ACTION: Update payment column to PAID
 async function markPaid(row){
   try {
     const res = await fetch(API_URL + "?action=markPaid&row=" + row);
     const data = await res.json();
-    if(data.success) { loadOrders(); } else { alert("Payment update failed."); }
-  } catch (e) { alert("Network error."); }
+    if(data.success){
+      loadOrders();
+    } else {
+      alert("Payment update failed.");
+    }
+  } catch (e) {
+    alert("Network error.");
+  }
 }
 
+// 🔄 WORKFLOW SWITCHER ACTION: Shifts Status (Pending -> Preparing -> Served -> Closed)
 async function updateStatus(row, nextState){
   if(nextState === 'Closed' && !confirm("Archive this order card from the monitor screen?")) return;
+  
   try {
+    // Send status change parameter, leave paymentStatus empty to protect your payment state value
     const res = await fetch(API_URL + "?action=markPaid&row=" + row + "&status=" + nextState + "&paymentStatus=");
     const data = await res.json();
-    if(data.success) { loadOrders(); } else { alert("Failed to update kitchen status state."); }
-  } catch (e) { alert("Network request timeout error."); }
+    if(data.success){
+      loadOrders();
+    } else {
+      alert("Failed to update kitchen status state.");
+    }
+  } catch (e) {
+    alert("Network request timeout error.");
+  }
 }
 
+// 🖨️ PRINT ACTION: Prints out formatting slip
 function printReceipt(rowId) {
   const order = currentOrders.find(o => Number(o.row) === Number(rowId));
   if (!order) return;
 
+  let itemsText = "";
   let parsedItems = Array.isArray(order.items) ? order.items : [];
   if(typeof order.items === 'string'){
      try { parsedItems = JSON.parse(order.items); } catch(e) { parsedItems = []; }
   }
 
-  // Generate table rows instead of flex divs to prevent stacking errors
-  let itemsHTML = parsedItems.map(item => `
-    <tr>
-      <td style="padding: 3px 0; vertical-align: top; font-size: 13px; text-align: left;">
-        ${item.qty}x ${item.name}
-      </td>
-      <td style="padding: 3px 0; vertical-align: top; font-size: 13px; text-align: right; white-space: nowrap;">
-        RM ${(Number(item.price || 0) * item.qty).toFixed(2)}
-      </td>
-    </tr>
-  `).join("");
+  parsedItems.forEach(item => {
+    itemsText += `<p style="display:flex; justify-content:space-between; margin:4px 0;"><span>${item.name}</span> <span>x${item.qty}</span></p>`;
+  });
 
-  const printArea = document.getElementById("thermalPrintSection");
-  printArea.innerHTML = `
-    <div style="width: 54mm; font-family: 'Courier New', monospace; font-size: 12px; color: #000; padding: 2px; line-height: 1.4;">
-      
-      <!-- Header block -->
-      <div style="text-align: center; margin-bottom: 8px;">
-        <b style="font-size: 15px;">wok hei</b><br>
-          Cha kuey tiew
-        <span style="font-size: 12px;">Order: ${order.orderNo || '-'}</span><br>
-        <span style="font-size: 12px;">Pager: ${order.pagerNo || '-'}</span><br>
-        <span style="font-size: 12px;">Status: ${order.status || 'Pending'}</span>
-      </div>
-      
-      <div style="border-top: 1px dashed #000; margin: 6px 0;"></div>
-      
-      <!-- Items structured safely using a plain native HTML table -->
-      <table style="width: 100%; border-collapse: collapse; font-family: 'Courier New', monospace;">
-        <tbody>
-          ${itemsHTML}
-        </tbody>
-      </table>
-      
-      <div style="border-top: 1px dashed #000; margin: 6px 0;"></div>
-      
-      <!-- Totals Block -->
-      <table style="width: 100%; border-collapse: collapse; font-family: 'Courier New', monospace; font-weight: bold; font-size: 14px;">
-        <tr>
-          <td style="text-align: left;">TOTAL:</td>
-          <td style="text-align: right;">RM ${Number(order.total || 0).toFixed(2)}</td>
-        </tr>
-      </table>
-      
-      <div style="text-align: center; font-size: 11px; margin-top: 15px;">
-        THANK YOU!<br>PLEASE COME AGAIN
-      </div>
-      <br><br>.
-    </div>
-  `;
+  const printWindow = window.open('', '_blank', 'width=350,height=500');
+  if (!printWindow) {
+    alert("Pop-up window blocked! Allow pop-ups to print receipts.");
+    return;
+  }
 
-  window.print();
+  printWindow.document.write(`
+    <html>
+    <head>
+      <title>Receipt - ${order.orderNo}</title>
+      <style>
+        body { font-family: 'Courier New', monospace; padding: 15px; text-align: center; color:#000; margin:0; }
+        .dashed-line { border-top: 1px dashed #000; margin: 10px 0; }
+        .items-container { text-align: left; font-size: 14px; }
+      </style>
+    </head>
+    <body>
+      <h3>ALFA FOOD RESTAURANT</h3>
+      <p>Order No: ${order.orderNo}<br>Pager: ${order.pagerNo}</p>
+      <div class="dashed-line"></div>
+      <div class="items-container">${itemsText}</div>
+      <div class="dashed-line"></div>
+      <h4 style="display:flex; justify-content:space-between; margin:5px 0;"><span>TOTAL:</span> <span>RM ${Number(order.total).toFixed(2)}</span></h4>
+      <p style="font-size:12px; margin-top:15px;">Payment: ${order.paymentStatus}</p>
+      <script>setTimeout(function(){ window.print(); window.close(); }, 500);<\/script>
+    </body>
+    </html>
+  `);
+  printWindow.document.close();
 }
 
-// Automatically spin up order checks and set background refresh interval sweeps
+// Initialize Loop Engine
 loadOrders();
-setInterval(loadOrders, 12000);
+setInterval(loadOrders, 5000);
 </script>
+
 </body>
 </html>
