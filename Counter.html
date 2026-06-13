@@ -237,7 +237,7 @@ async function updateStatus(row, nextState){
   }
 }
 
-// 🖨️ DIRECT RAWBT MOBILE APP REDIRECTION ACTION (FIXED FOR BASE64 RAW TEXT BUG)
+// 🖨️ DIRECT RAWBT PLAIN TEXT REDIRECTION (BYPASSES BASE64 PROBLEMS)
 function printReceipt(rowId) {
   const order = currentOrders.find(o => Number(o.row) === Number(rowId));
   if (!order) return;
@@ -247,7 +247,7 @@ function printReceipt(rowId) {
      try { parsedItems = JSON.parse(order.items); } catch(e) { parsedItems = []; }
   }
 
-  // Exact 32-character field width layout for POS-5810DD 58mm roll width
+  // Strict 32-character line limits optimized for POS-5810DD 58mm layouts
   let txt = "";
   txt += "            TAIPING\n";
   txt += "            WOK HEI\n";
@@ -274,28 +274,19 @@ function printReceipt(rowId) {
   txt += `Payment Status: ${order.paymentStatus || 'Unpaid'}\n`;
   txt += "--------------------------------\n";
   txt += "     Thank You! Please Wait     \n";
-  txt += "\n\n\n\n.\n\n"; 
+  txt += "\n\n\n\n.\n\n"; // Hard feed past paper tear bar
 
   try {
-    // 1. Properly translate characters into an array of UTF-8 clean bytes
-    const encoder = new TextEncoder();
-    const bytes = encoder.encode(txt);
+    // URL Percent-encode the plain text directly to safely escape spaces and symbols
+    const cleanUrlText = encodeURIComponent(txt);
     
-    // 2. Convert binary byte array safely over to standard base64 structure
-    let binString = "";
-    for (let i = 0; i < bytes.byteLength; i++) {
-      binString += String.fromCharCode(bytes[i]);
-    }
-    const base64Data = btoa(binString);
-    
-    // 3. FORCE DECODING: Use RawBT's specific URL scheme prefix instead of an intent string
-    window.location.href = "rawbt://base64/" + base64Data;
+    // Direct execution call using RawBT's native plain-text handler string
+    window.location.href = "rawbt:" + cleanUrlText;
 
   } catch (err) {
-    alert("Could not interface with RawBT. Verify the app is configured on this tablet.");
+    alert("Could not interface with RawBT. Verify the app is running on this tablet.");
   }
 }
-
   // Initial Bootup Sequence Execution
 loadOrders();
 // Optional Poll Sync Loop: check for new database lines every 15 seconds automatically
