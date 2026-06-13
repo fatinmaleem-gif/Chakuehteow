@@ -237,7 +237,7 @@ async function updateStatus(row, nextState){
   }
 }
 
-// 🖨️ DIRECT RAWBT MOBILE APP REDIRECTION ACTION
+// 🖨️ DIRECT RAWBT MOBILE APP REDIRECTION ACTION (UPDATED FOR POS-5810DD)
 function printReceipt(rowId) {
   const order = currentOrders.find(o => Number(o.row) === Number(rowId));
   if (!order) return;
@@ -247,7 +247,7 @@ function printReceipt(rowId) {
      try { parsedItems = JSON.parse(order.items); } catch(e) { parsedItems = []; }
   }
 
-  // Build text using an exact 32-character field width layout for 58mm rolls
+  // Exact 32-character field width layout for POS-5810DD 58mm roll width
   let txt = "";
   txt += "            TAIPING\n";
   txt += "            WOK HEI\n";
@@ -259,6 +259,7 @@ function printReceipt(rowId) {
   txt += "--------------------------------\n";
   
   parsedItems.forEach(item => {
+    // 20 chars for name, 4 for qty (e.g. "  x2"), 8 for price (e.g. " RM14.00") = 32 total
     let name = item.name.substring(0, 20).padEnd(20, " ");
     let qty = ("x" + item.qty).padStart(4, " ");
     let price = "";
@@ -274,13 +275,16 @@ function printReceipt(rowId) {
   txt += `Payment Status: ${order.paymentStatus || 'Unpaid'}\n`;
   txt += "--------------------------------\n";
   txt += "     Thank You! Please Wait     \n";
-  txt += "\n\n\n\n"; // Feeds lines to clear physical tearing blade
+  
+  // Explicit line feeds plus extra spacing characters to ensure the POS-5810DD 
+  // pushes the paper fully past the physical tear-off cutter bar.
+  txt += "\n\n\n\n.\n\n"; 
 
   try {
     // UTF-8 Clean Base64 formatting for Android Inter-App Intents
     const base64Data = btoa(unescape(encodeURIComponent(txt)));
     
-    // Explicit Android system instruction addressing the RawBT application background listener
+    // Direct system instruction addressing the RawBT application background listener
     const rawbtIntent = `intent:${base64Data}#Intent;scheme=rawbt;package=ru.a402d.rawbtprinter;S.ru.a402d.rawbtprinter.extra.MIME_TYPE=text/plain;S.ru.a402d.rawbtprinter.extra.ENCODING=base64;end;`;
     
     window.location.href = rawbtIntent;
@@ -288,7 +292,6 @@ function printReceipt(rowId) {
     alert("Could not interface with RawBT. Verify the app is configured on this tablet.");
   }
 }
-
 // Initial Bootup Sequence Execution
 loadOrders();
 // Optional Poll Sync Loop: check for new database lines every 15 seconds automatically
