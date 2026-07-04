@@ -270,21 +270,24 @@ function printReceipt(rowId) {
   txt += "--------------------------------\n";
   
   parsedItems.forEach(item => {
-  let name = item.name.substring(0, 20).padEnd(20, " ");
-  let qty = ("x" + item.qty).padStart(4, " ");
-  let price = "";
-  if (item.price) {
-    price = ("RM" + (item.price * item.qty).toFixed(2)).padStart(8, " ");
-  }
-  txt += `${name}${qty}${price}\n`;
+    let name = item.name.substring(0, 20).padEnd(20, " ");
+    let qty = ("x" + item.qty).padStart(4, " ");
+    let price = "";
+    if (item.price) {
+      price = ("RM" + (item.price * item.qty).toFixed(2)).padStart(8, " ");
+    }
+    txt += `${name}${qty}${price}\n`;
 
-  // Print customization options if they exist
-  if (item.options && Array.isArray(item.options) && item.options.length > 0) {
-    txt += `  [${item.options.join(', ')}]\n`;
-  } else if (item.option) {
-    txt += `  [${item.option}]\n`;
-  }
-});
+    // FIX: Pull specific customization choices for the layout array
+    let details = [];
+    if (item.spicy && item.spicy !== "Normal") details.push(item.spicy);
+    if (item.sayur) details.push(item.sayur);
+    if (item.addOn && item.addOn !== "No Add On") details.push(item.addOn);
+
+    if (details.length > 0) {
+      txt += `  ↳ ${details.join(' | ')}\n`;
+    }
+  });
   
   txt += "--------------------------------\n";
   let formattedTotal = "RM " + Number(order.total || 0).toFixed(2);
