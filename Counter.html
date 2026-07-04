@@ -154,29 +154,23 @@ async function loadOrders(){
     activeOrders.reverse().forEach(order=>{
       let itemsHTML = "";
       
+      // FIX: We need to define and parse parsedItems first before looping!
+      let parsedItems = Array.isArray(order.items) ? order.items : [];
+      if(typeof order.items === 'string'){
+         try { parsedItems = JSON.parse(order.items); } catch(e) { parsedItems = []; }
+      }
+
+      // Loop through the items and append options
       parsedItems.forEach(item => {
-  let optionsText = "";
-  // Check if item has options/addons array and parse them
-  if (item.options && Array.isArray(item.options)) {
-    optionsText = `<div style="font-size:12px; color:#555; margin-left: 15px;">↳ ${item.options.join(', ')}</div>`;
-  } else if (item.option) { // In case it's a single string property
-    optionsText = `<div style="font-size:12px; color:#555; margin-left: 15px;">↳ ${item.option}</div>`;
-  }
+        let optionsText = "";
+        if (item.options && Array.isArray(item.options)) {
+          optionsText = `<div style="font-size:12px; color:#555; margin-left: 15px;">↳ ${item.options.join(', ')}</div>`;
+        } else if (item.option) { 
+          optionsText = `<div style="font-size:12px; color:#555; margin-left: 15px;">↳ ${item.option}</div>`;
+        }
+        itemsHTML += `<div>⚡ <b>${item.qty}x</b> ${item.name}</div>${optionsText}`;
+      });
 
-  itemsHTML += `<div>⚡ <b>${item.qty}x</b> ${item.name}</div>${optionsText}`;
-});
-
-      parsedItems.forEach(item => {
-      let optionsText = "";
-      // Check if item has options/addons array and parse them
-      if (item.options && Array.isArray(item.options)) {
-     optionsText = `<div style="font-size:12px; color:#555; margin-left: 15px;">↳ ${item.options.join(', ')}</div>`;
-   } else if (item.option) { // In case it's a single string property
-      optionsText = `<div style="font-size:12px; color:#555; margin-left: 15px;">↳ ${item.option}</div>`;
-  }
-
-  itemsHTML += `<div>⚡ <b>${item.qty}x</b> ${item.name}</div>${optionsText}`;
-});
       const isPaid = (order.paymentStatus || "").toUpperCase() === "PAID";
       
       // Dynamic boundary colors based on kitchen cooking state
