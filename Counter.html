@@ -128,6 +128,10 @@ button:hover{
 const API_URL = "https://script.google.com/macros/s/AKfycbyMEFw5aCyjy2S9hcF5y9QUj1VXRaKzL6sgv7fwxAKFKbGXo5jifOITAd4WKbA62wIL/exec";
 
 let currentOrders = [];
+let lastActiveOrderCount = null; // Tracks order count to prevent sound spam on first load
+
+// Notification sound URL (Google material sound)
+const NOTIFICATION_SOUND = new Audio("https://actions.google.com/sounds/v1/alerts/digital_watch_alarm_long.ogg");
 
 async function loadOrders(){
   try{
@@ -138,6 +142,7 @@ async function loadOrders(){
 
     if(!data.success || !data.orders || data.orders.length === 0){
       ordersDiv.innerHTML = "<h2 style='grid-column:1/-1; text-align:center; color:#777;'>No active orders</h2>";
+      lastActiveOrderCount = 0;
       return;
     }
 
@@ -145,6 +150,12 @@ async function loadOrders(){
 
     // Filter out orders that have been completely archived
     const activeOrders = data.orders.filter(o => String(o.status).toLowerCase() !== "closed");
+
+    // SOUND ALERT LOGIC: Trigger sound only if the current active count is higher than before
+    if (lastActiveOrderCount !== null && activeOrders.length > lastActiveOrderCount) {
+      NOTIFICATION_SOUND.play().catch(e => console.log("Audio playback waiting for user interaction gesture."));
+    }
+    lastActiveOrderCount = activeOrders.length;
 
     if(activeOrders.length === 0){
       ordersDiv.innerHTML = "<h2 style='grid-column:1/-1; text-align:center; color:#777;'>All orders cleared! 🎉</h2>";
@@ -216,6 +227,7 @@ async function loadOrders(){
     console.error(error);
   }
 }
+
 // 💵 BUTTON ACTION: Update payment column to PAID
 async function markPaid(row){
   try {
@@ -308,7 +320,8 @@ function printReceipt(rowId) {
     alert("Could not interface with RawBT. Verify the app is running on this tablet.");
   }
 }
-  // Initial Bootup Sequence Execution
+
+// Initial Bootup Sequence Execution
 loadOrders();
 // Optional Poll Sync Loop: check for new database lines every 15 seconds automatically
 setInterval(loadOrders, 15000);
